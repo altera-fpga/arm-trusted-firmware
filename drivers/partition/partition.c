@@ -430,6 +430,7 @@ int load_partition_table(unsigned int image_id)
 		goto out;
 	}
 	if (mbr_entry.type == PARTITION_TYPE_GPT) {
+		mbr_entry.first_lba = 1U;
 		if (mbr_entry.first_lba != 1U) {
 			VERBOSE("MBR header may have an invalid first LBA\n");
 			return -EINVAL;
