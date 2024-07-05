@@ -243,3 +243,8 @@ uint32_t arm_get_spsr_for_bl33_entry(void)
 	spsr = SPSR_64((uint64_t)mode, MODE_SP_ELX, DISABLE_ALL_EXCEPTIONS);
 	return spsr;
 }
+
+void bl31_plat_runtime_setup(void)
+{
+	console_switch_state(CONSOLE_FLAG_RUNTIME|CONSOLE_FLAG_BOOT);
+}

@@ -279,6 +279,11 @@ void bl31_plat_set_secondary_cpu_off(void)
 	mmio_write_32(AGX5_PWRMGR(MPU_PCHCTLR), pch_cpu);
 }
 
+void bl31_plat_runtime_setup(void)
+{
+	console_switch_state(CONSOLE_FLAG_RUNTIME|CONSOLE_FLAG_BOOT);
+}
+
 void bl31_plat_enable_mmu(uint32_t flags)
 {
 	/* TODO: Enable mmu when needed */
