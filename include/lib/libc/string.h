@@ -31,5 +31,6 @@ size_t strlcpy(char * dst, const char * src, size_t dsize);
 size_t strlcat(char * dst, const char * src, size_t dsize);
 char *strtok_r(char *s, const char *delim, char **last);
 size_t strnlen_s(const char *str, size_t maxlen);
+int strcpy_s(char *dest, size_t dest_size, const char *src);
 
 #endif /* STRING_H */
