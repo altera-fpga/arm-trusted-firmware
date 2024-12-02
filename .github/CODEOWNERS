@@ -1,5 +1,5 @@
-package.json @CJKay
-package-lock.json @CJKay
+# Specify reviewers for all files except the CODEOWNERS file
+* @ngboonkhai @kk-hea @drosdi @BenjaminLimJL
 
-pyproject.toml @CJKay
-poetry.lock @CJKay
+# Specify reviewers for the CODEOWNERS file
+/.github/CODEOWNERS @vvijayak-devops
