@@ -1,11 +1,12 @@
 #!/usr/bin/env groovy
 def linuxBuildStageLabel = "Linux-Build-${UUID.randomUUID().toString()}"
 def jenkinsSlaveContainerName = 'jnlp'
-def jenkinsSlaveImage = 'amr-registry-pre.caas.intel.com/pse-pswe-software-ba/jenkins/jnlp-slave'
+def jenkinsSlaveImage = 'amr-registry.sc.altera.com/pse-pswe-software-ba/jenkins/jnlp-slave'
 def buildNumber = currentBuild.number
+def branchName = env.BRANCH_NAME
 containerImage =''
 
-def cloudName = 'kubernetes_embedded'
+def cloudName = 'kubernetes-Embedded-Altera-SC-1'
 def containerName = 'embedded'
 
 pipeline {
@@ -121,7 +122,7 @@ spec:
     tty: true
     imagePullPolicy: Always
   - name: ${containerName}
-    image: 'amr-registry-pre.caas.intel.com/pse-pswe-software-ba/embedded_kw:ubuntu20.04.3-sys-gsrd'
+    image: 'amr-registry.sc.altera.com/pse-pswe-software-ba/embedded_kw:ubuntu20.04.3-sys-gsrd'
     tty: true
     imagePullPolicy: Always
     restartPolicy: "Never"
@@ -221,6 +222,15 @@ spec:
                             exit -1
                         }
                     }
+                }
+            }
+        }
+
+
+	stage("Coverity Scan") {
+            steps {
+                script {
+                    build job: "Embedded/arm-trusted-firmware/Coverity-ATF-PR", parameters: [string(name: 'BRANCH_NAME', value: branchName)], wait: true
                 }
             }
         }
