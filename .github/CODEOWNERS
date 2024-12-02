@@ -1,0 +1,5 @@
+# Specify reviewers for all files except the CODEOWNERS file
+* @sieumunt @ngboonkhai @kk-hea @drosdi @BenjaminLimJL
+
+# Specify reviewers for the CODEOWNERS file
+/.github/CODEOWNERS @vvijayak-devops
