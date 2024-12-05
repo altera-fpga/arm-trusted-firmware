@@ -21,6 +21,7 @@
 #include "agilex5_cache.h"
 #include "agilex5_power_manager.h"
 #include "ccu/ncore_ccu.h"
+#include "socfpga_dt.h"
 #include "socfpga_mailbox.h"
 #include "socfpga_private.h"
 #include "socfpga_reset_manager.h"
@@ -146,9 +147,7 @@ static const interrupt_prop_t agx5_interrupt_props[] = {
 	PLAT_INTEL_SOCFPGA_G0_IRQ_PROPS(INTR_GROUP0)
 };
 
-static const gicv3_driver_data_t plat_gicv3_gic_data = {
-	.gicd_base = PLAT_INTEL_SOCFPGA_GICD_BASE,
-	.gicr_base = PLAT_INTEL_SOCFPGA_GICR_BASE,
+gicv3_driver_data_t plat_gicv3_gic_data = {
 	.interrupt_props = agx5_interrupt_props,
 	.interrupt_props_num = ARRAY_SIZE(agx5_interrupt_props),
 	.rdistif_num = PLATFORM_CORE_COUNT,
@@ -161,6 +160,10 @@ static const gicv3_driver_data_t plat_gicv3_gic_data = {
 void bl31_platform_setup(void)
 {
 	socfpga_delay_timer_init();
+
+	socfpga_dt_populate_gicv3_config(SOCFPGA_DTB_BASE, &plat_gicv3_gic_data);
+	NOTICE("SOCFPGA: GIC GICD base address 0x%lx\n", plat_gicv3_gic_data.gicd_base);
+	NOTICE("SOCFPGA: GIC GICR base address 0x%lx\n", plat_gicv3_gic_data.gicr_base);
 
 	/* Initialize the gic cpu and distributor interfaces */
 	gicv3_driver_init(&plat_gicv3_gic_data);
@@ -192,9 +195,9 @@ void bl31_plat_arch_setup(void)
 
 	cpuid = MPIDR_AFFLVL1_VAL(read_mpidr());
 	boot_core = ((mmio_read_32(AGX5_PWRMGR(MPU_BOOTCONFIG)) & 0xC00) >> 10);
-	NOTICE("BL31: Boot Core = %x\n", boot_core);
-	NOTICE("BL31: CPU ID = %x\n", cpuid);
-	INFO("BL31: Invalidate Data cache\n");
+	NOTICE("SOCFPGA: Boot Core = %x\n", boot_core);
+	NOTICE("SOCFPGA: CPU ID = %x\n", cpuid);
+	INFO("SOCFPGA: Invalidate Data cache\n");
 	invalidate_dcache_all();
 }
 
