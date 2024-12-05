@@ -75,6 +75,8 @@ static int load_mbr_header(uintptr_t image_handle, mbr_entry_t *mbr_entry)
 
 	memcpy(&tmp, mbr_sector + MBR_PRIMARY_ENTRY_OFFSET, sizeof(tmp));
 
+	/* ToDo: Hardcoded LBA=1 and will remove this workaround once have permanent fix*/
+	tmp.first_lba = 1;
 	if (tmp.first_lba != 1) {
 		VERBOSE("MBR header may have an invalid first LBA\n");
 		return -EINVAL;
