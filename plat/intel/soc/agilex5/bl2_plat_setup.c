@@ -31,7 +31,8 @@
 #include "nand/nand.h"
 #include "qspi/cadence_qspi.h"
 #include "sdmmc/sdmmc.h"
-#include "socfpga_dt.h"
+/* TODO: DTB not available */
+// #include "socfpga_dt.h"
 #include "socfpga_emac.h"
 #include "socfpga_f2sdram_manager.h"
 #include "socfpga_handoff.h"
@@ -139,10 +140,11 @@ void bl2_el3_early_platform_setup(u_register_t x0 __unused,
 	/* DDR and IOSSM driver init */
 	agilex5_ddr_init(&reverse_handoff_ptr);
 
-	if (socfpga_dt_open_and_check(SOCFPGA_DTB_BASE, DT_COMPATIBLE_STR) < 0) {
-		ERROR("SOCFPGA: Failed to open device tree\n");
-		panic();
-	}
+	/* TODO: DTB not available */
+	// if (socfpga_dt_open_and_check(SOCFPGA_DTB_BASE, DT_COMPATIBLE_STR) < 0) {
+		// ERROR("SOCFPGA: Failed to open device tree\n");
+		// panic();
+	// }
 
 	if (combo_phy_init(&reverse_handoff_ptr) != 0) {
 		ERROR("SOCFPGA: Combo Phy initialization failed\n");

@@ -148,6 +148,8 @@ static const interrupt_prop_t agx5_interrupt_props[] = {
 };
 
 gicv3_driver_data_t plat_gicv3_gic_data = {
+	.gicd_base = PLAT_INTEL_SOCFPGA_GICD_BASE,
+	.gicr_base = PLAT_INTEL_SOCFPGA_GICR_BASE,
 	.interrupt_props = agx5_interrupt_props,
 	.interrupt_props_num = ARRAY_SIZE(agx5_interrupt_props),
 	.rdistif_num = PLATFORM_CORE_COUNT,
@@ -161,9 +163,10 @@ void bl31_platform_setup(void)
 {
 	socfpga_delay_timer_init();
 
-	socfpga_dt_populate_gicv3_config(SOCFPGA_DTB_BASE, &plat_gicv3_gic_data);
-	NOTICE("SOCFPGA: GIC GICD base address 0x%lx\n", plat_gicv3_gic_data.gicd_base);
-	NOTICE("SOCFPGA: GIC GICR base address 0x%lx\n", plat_gicv3_gic_data.gicr_base);
+	/* TODO: DTB not available */
+	// socfpga_dt_populate_gicv3_config(SOCFPGA_DTB_BASE, &plat_gicv3_gic_data);
+	// NOTICE("SOCFPGA: GIC GICD base address 0x%lx\n", plat_gicv3_gic_data.gicd_base);
+	// NOTICE("SOCFPGA: GIC GICR base address 0x%lx\n", plat_gicv3_gic_data.gicr_base);
 
 	/* Initialize the gic cpu and distributor interfaces */
 	gicv3_driver_init(&plat_gicv3_gic_data);
