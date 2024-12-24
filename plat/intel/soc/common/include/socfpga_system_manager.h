@@ -36,5 +36,6 @@
 /* Function Prototype */
 uint32_t intel_hps_get_jtag_id(void);
 bool is_agilex5_A5F0(void);
+bool is_agilex5_A5F4(void);
 
 #endif /* SOCFPGA_SYSTEMMANAGER_H */
