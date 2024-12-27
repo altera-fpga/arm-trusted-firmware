@@ -190,6 +190,7 @@ int bl2_plat_handle_post_image_load(unsigned int image_id)
 	ret = socfpga_vab_init(image_id);
 	if (ret < 0) {
 		ERROR("SOCFPGA VAB Authentication failed\n");
+		while (1)
 		wfi();
 	}
 #endif
