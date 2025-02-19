@@ -179,7 +179,12 @@ void bl31_platform_setup(void)
 	gicv3_cpuif_enable(plat_my_core_pos());
 
 #if SIP_SVC_V3
-	/* Re-initialize the mailbox to include V3 specific routines. */
+	/*
+	 * Re-initialize the mailbox to include V3 specific routines.
+	 * In V3, this re-initialize is required because prior to BL31, U-Boot
+	 * SPL has its own mailbox settings and this initialization will
+	 * override to those settings as required by the V3 framework.
+	 */
 	mailbox_init();
 #endif
 
