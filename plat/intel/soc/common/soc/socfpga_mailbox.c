@@ -1074,7 +1074,7 @@ int mailbox_send_cmd_async_v3(uint8_t client_id, uint8_t job_id, uint32_t cmd,
 	VERBOSE("MBOX: cid: %d, jid: %d, cmd: %d, cmd_flag: %d\n",
 		client_id, job_id, cmd, cmd_flag);
 
-	if (IS_CMD_URGENT(cmd_flag)) {
+	if (IS_CMD_SET(cmd_flag, URGENT)) {
 		mmio_write_32(MBOX_OFFSET + MBOX_URG, cmd);
 		mmio_write_32(MBOX_OFFSET + MBOX_DOORBELL_TO_SDM, 1U);
 	} else {
@@ -1093,7 +1093,7 @@ int mailbox_send_cmd_async_v3(uint8_t client_id, uint8_t job_id, uint32_t cmd,
 		/* Push the command to mailbox FIFO */
 		status = fill_mailbox_circular_buffer(
 					MBOX_FRAME_CMD_HEADER(client_id, job_id,
-					args_len, IS_CMD_INDIRECT(cmd_flag), cmd),
+					args_len, IS_CMD_SET(cmd_flag, INDIRECT), cmd),
 					args,
 					args_len);
 

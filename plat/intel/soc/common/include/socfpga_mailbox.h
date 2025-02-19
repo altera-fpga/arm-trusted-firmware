@@ -138,13 +138,7 @@
 #define MBOX_CMD_FLAG_CASUAL_INDIRECT			(MBOX_CMD_FLAG_CASUAL | \
 							 MBOX_CMD_FLAG_INDIRECT)
 
-#define IS_CMD_DIRECT(cmd)				((((cmd) & MBOX_CMD_FLAG_DIRECT) != 0) ? \
-								1 : 0)
-#define IS_CMD_INDIRECT(cmd)				((((cmd) & MBOX_CMD_FLAG_INDIRECT) != 0) ? \
-								1 : 0)
-#define IS_CMD_CASUAL(cmd)				((((cmd) & MBOX_CMD_FLAG_CASUAL) != 0) ? \
-								1 : 0)
-#define IS_CMD_URGENT(cmd)				((((cmd) & MBOX_CMD_FLAG_URGENT) != 0) ? \
+#define IS_CMD_SET(cmd, _type)				((((cmd) & MBOX_CMD_FLAG_##_type) != 0) ? \
 								1 : 0)
 
 #define MBOX_WORD_BYTE					4U

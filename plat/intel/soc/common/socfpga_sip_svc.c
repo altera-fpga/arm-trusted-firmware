@@ -1373,8 +1373,8 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 			SMC_RET1(handle, status);
 		}
 
-		fcs_cs_key_payload payload = {session_id, RES_ZERO,
-					      RES_ZERO, key_uid};
+		fcs_cs_key_payload payload = {session_id, RESERVED_AS_ZERO,
+					      RESERVED_AS_ZERO, key_uid};
 
 		status = mailbox_send_cmd_async_v3(GET_CLIENT_ID(x1),
 						   GET_JOB_ID(x1),
@@ -1393,8 +1393,8 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 		uint32_t session_id = (uint32_t)x2;
 		uint32_t key_uid = (uint32_t)x3;
 
-		fcs_cs_key_payload payload = {session_id, RES_ZERO,
-					      RES_ZERO, key_uid};
+		fcs_cs_key_payload payload = {session_id, RESERVED_AS_ZERO,
+					      RESERVED_AS_ZERO, key_uid};
 
 		status = mailbox_send_cmd_async_v3(GET_CLIENT_ID(x1),
 						   GET_JOB_ID(x1),
@@ -1421,8 +1421,8 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 			SMC_RET1(handle, status);
 		}
 
-		fcs_cs_key_payload payload = {session_id, RES_ZERO,
-					      RES_ZERO, key_uid};
+		fcs_cs_key_payload payload = {session_id, RESERVED_AS_ZERO,
+					      RESERVED_AS_ZERO, key_uid};
 
 		status = mailbox_send_cmd_async_v3(GET_CLIENT_ID(x1),
 						   GET_JOB_ID(x1),
