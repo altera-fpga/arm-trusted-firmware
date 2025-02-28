@@ -97,7 +97,7 @@
 #define FCS_CRYPTO_GCM_MODE					0x03
 #define FCS_CRYPTO_GCM_GHASH_MODE				0x04
 
-#define FCS_HKDF_REQUEST_DATA_SIZE				256U
+#define FCS_HKDF_REQUEST_DATA_SIZE				512U
 #define FCS_HKDF_KEY_OBJ_MAX_SIZE				352U
 #define FCS_HKDF_KEY_DATA_SIZE					168U
 #define FCS_HKDF_STEP0_1_KEY_OBJ_SIZE_BITS			384U
@@ -368,6 +368,5 @@ int intel_fcs_aes_crypt_update_finalize(uint32_t smc_fid, uint32_t trans_id,
 int intel_fcs_hkdf_request(uint32_t smc_fid, uint32_t trans_id,
 			uint32_t session_id, uint32_t step_type,
 			uint32_t mac_mode, uint32_t src_addr,
-			uint32_t key_uid, uint32_t dst_addr,
-			uint32_t dst_size);
+			uint32_t key_uid, uint32_t op_key_size);
 #endif /* SOCFPGA_FCS_H */
