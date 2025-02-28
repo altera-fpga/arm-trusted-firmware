@@ -2836,20 +2836,17 @@ int intel_fcs_aes_crypt_update_finalize(uint32_t smc_fid, uint32_t trans_id,
 }
 
 int intel_fcs_hkdf_request(uint32_t smc_fid, uint32_t trans_id,
-			uint32_t session_id, uint32_t step_type,
-			uint32_t mac_mode, uint32_t src_addr,
-			uint32_t key_uid, uint32_t dst_addr,
-			uint32_t dst_size)
+			   uint32_t session_id, uint32_t step_type,
+			   uint32_t mac_mode, uint32_t src_addr,
+			   uint32_t key_uid, uint32_t op_key_size)
 {
 	int status;
 	uint32_t i = 0;
 	uintptr_t inputdata;
 	uint32_t payload[FCS_HKDF_REQUEST_DATA_SIZE] = {0U};
 
-	if (!is_address_in_ddr_range(src_addr, FCS_HKDF_KEY_DATA_SIZE) ||
-		!is_address_in_ddr_range(dst_addr, dst_size)) {
-		ERROR("MBOX: %s: src (0x%x)/dst(0x%x) addr not in the DDR range\n",
-			__func__, src_addr, dst_addr);
+	if (!is_address_in_ddr_range(src_addr, FCS_HKDF_REQUEST_DATA_SIZE)) {
+		ERROR("MBOX: %s: source addr not in the DDR range\n", __func__);
 		return INTEL_SIP_SMC_STATUS_REJECTED;
 	}
 
@@ -2863,6 +2860,9 @@ int intel_fcs_hkdf_request(uint32_t smc_fid, uint32_t trans_id,
 	payload[i] = 0;
 	i++;
 
+	payload[i] = 0;
+	i++;
+
 	/* HKDF step type */
 	payload[i] = step_type;
 	i++;
@@ -2871,39 +2871,25 @@ int intel_fcs_hkdf_request(uint32_t smc_fid, uint32_t trans_id,
 	payload[i] = mac_mode;
 	i++;
 
-	/* 1st input data in bytes, only support SHA2-384 now, it is 48bytes */
-	payload[i] = FCS_HKDF_SHA2_384_KEY_DATA_SIZE;
-	i++;
-
-	/* 1st input data */
+	/* Complete input data, 1st input data len + its data + 2nd input data len + its data. */
 	inputdata = src_addr;
-	memcpy_s((uint8_t *)&payload[i], FCS_HKDF_INPUT_BLOCK_SIZE / sizeof(uint32_t),
-		(uint8_t *)inputdata, FCS_HKDF_INPUT_BLOCK_SIZE / sizeof(uint32_t));
-	i += (FCS_HKDF_INPUT_BLOCK_SIZE / sizeof(uint32_t));
+	memcpy_s((uint8_t *)&payload[i], FCS_HKDF_KEY_DATA_SIZE / sizeof(uint32_t),
+		(uint8_t *)inputdata, FCS_HKDF_KEY_DATA_SIZE / sizeof(uint32_t));
 
-	/* 2nd input data in bytes */
-	payload[i] = FCS_HKDF_SHA2_384_KEY_DATA_SIZE;
-	i++;
-
-	/* 2nd input data */
-	inputdata = inputdata + (FCS_HKDF_INPUT_BLOCK_SIZE / sizeof(uint32_t));
-	memcpy_s((uint8_t *)&payload[i], FCS_HKDF_INPUT_BLOCK_SIZE / sizeof(uint32_t),
-		(uint8_t *)inputdata, FCS_HKDF_INPUT_BLOCK_SIZE / sizeof(uint32_t));
-	i += (FCS_HKDF_INPUT_BLOCK_SIZE / sizeof(uint32_t));
+	i += FCS_HKDF_KEY_DATA_SIZE / sizeof(uint32_t);
 
 	/* Key UID */
 	payload[i] = key_uid;
 	i++;
 
-	/* Output key object */
-	uint32_t key_obj_size_bits = ((step_type == 0) || (step_type == 1)) ?
-				FCS_HKDF_STEP0_1_KEY_OBJ_SIZE_BITS :
-				FCS_HKDF_STEP2_KEY_OBJ_SIZE_BITS;
+	/* Pointer to size of output key object */
+	inputdata = inputdata + FCS_HKDF_KEY_DATA_SIZE;
 
-	inputdata = inputdata + (FCS_HKDF_INPUT_BLOCK_SIZE / sizeof(uint32_t));
-	memcpy_s((uint8_t *)&payload[i], ((key_obj_size_bits / 8) / 4),
-		(uint8_t *)inputdata, ((key_obj_size_bits / 8) / 4));
-	i += ((key_obj_size_bits / 8) / 4);
+	/* Output Key object */
+	memcpy_s(&payload[i], op_key_size / sizeof(uint32_t), (void *)inputdata,
+		op_key_size / sizeof(uint32_t));
+
+	i += op_key_size / sizeof(uint32_t);
 
 	status = mailbox_send_cmd_async_v3(GET_CLIENT_ID(trans_id),
 					GET_JOB_ID(trans_id),

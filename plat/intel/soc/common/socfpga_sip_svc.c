@@ -1621,7 +1621,7 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 	case ALTERA_SIP_SMC_ASYNC_FCS_HKDF_REQUEST:
 	{
 		status = intel_fcs_hkdf_request(smc_fid, x1, x2, x3, x4, x5, x6,
-					x7, x8);
+					x7);
 		SMC_RET1(handle, status);
 	}
 
