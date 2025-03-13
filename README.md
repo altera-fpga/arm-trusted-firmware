@@ -22,9 +22,9 @@ https://www.intel.com/content/www/us/en/products/programmable/soc.html
 
 Version		|	Release Branch		|	TF-A Tag
 -------		|	--------------		|	--------
-Current (N)	|	socfpga_v2.12.0		|	v2.12
-N - 1		|	socfpga_v2.11.1		|	v2.11
-N - 2		|	socfpga_v2.11.0		|	v2.11
+Current (N)	|	socfpga_v2.12.1		|	v2.12
+N - 1		|	socfpga_v2.12.0		|	v2.11
+N - 2		|	socfpga_v2.11.1		|	v2.11
 
 ----
 
@@ -37,9 +37,9 @@ to be compatible with current TF-A release. All families support only BL2 and BL
 
 SoC FPGA / eASIC Device Family	|	Processor Microarchitecture	|	Quartus Prime Pro Edition
 ---------------------		|	---------------------------	|	-------------------------------
-Stratix 10			|	Quad-core ARM Cortex-A53	|	24.3.1
-Agilex				|	Quad-core ARM Cortex-A53	|	24.3.1
-eASIC N5X			|	Quad-core ARM Cortex-A53	|	24.3.1
+Stratix 10			|	Quad-core ARM Cortex-A53	|	25.1
+Agilex				|	Quad-core ARM Cortex-A53	|	25.1
+eASIC N5X			|	Quad-core ARM Cortex-A53	|	25.1
 
 ----
 
@@ -90,7 +90,7 @@ ECDSA Signing and Verification	|	No		|	Yes		|	No
 
 ## 4. Major Changes
 
-1. Upgrade Intel SoC FPGA TF-A to version socfpga_v2.12.0
+1. Upgrade Intel SoC FPGA TF-A to version socfpga_v2.12.1
 	- Based on TF-A version 2.12 official release
 
 ----
