@@ -1,10 +1,10 @@
-# Intel SoC FPGA Documentation for Trusted Firmware-A
+# Altera SoC FPGA Documentation for Trusted Firmware-A
 
 ## Introduction
 
-This README file describes TF-A support for Intel SoC FPGA.
+This README file describes TF-A support for Altera SoC FPGA.
 For detailed information regarding the hardware product, please refer to
-https://www.intel.com/content/www/us/en/products/programmable/soc.html
+https://www.altera.com
 
 ----
 
@@ -84,13 +84,13 @@ ECDSA Signing and Verification	|	No		|	Yes		|	No
 
 ----
 ### Notes
-<sup>1</sup> FCS Feature Not supported in Intel Quartus Prime Pro 20.4
+<sup>1</sup> FCS Feature Not supported in Altera Quartus Prime Pro 20.4
 
 ----
 
 ## 4. Major Changes
 
-1. Upgrade Intel SoC FPGA TF-A to version socfpga_v2.12.1
+1. Upgrade Altera SoC FPGA TF-A to version socfpga_v2.12.1
 	- Based on TF-A version 2.12 official release
 
 ----
