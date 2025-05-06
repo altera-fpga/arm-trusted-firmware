@@ -67,6 +67,11 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 	mmio_write_64(PLAT_SEC_ENTRY, PLAT_SEC_WARM_ENTRY);
 	console_16550_register(PLAT_INTEL_UART_BASE, PLAT_UART_CLOCK,
 		PLAT_BAUDRATE, &console);
+
+	/* Enable TF-A BL31 logs when running from non-secure world also. */
+	console_set_scope(&console,
+		(CONSOLE_FLAG_BOOT | CONSOLE_FLAG_RUNTIME | CONSOLE_FLAG_CRASH));
+
 	/*
 	 * Check params passed from BL31 should not be NULL,
 	 */
@@ -256,5 +261,5 @@ uint32_t arm_get_spsr_for_bl33_entry(void)
 
 void bl31_plat_runtime_setup(void)
 {
-	console_switch_state(CONSOLE_FLAG_RUNTIME|CONSOLE_FLAG_BOOT);
+	/* Dummy override function. */
 }
