@@ -252,5 +252,6 @@ int socfpga_cpu_reset_base(unsigned int cpu_id);
 /* SMP: Func proto */
 void bl31_plat_set_secondary_cpu_entrypoint(unsigned int cpu_id);
 void bl31_plat_set_secondary_cpu_off(void);
+void bl31_plat_reset_secondary_cpu(unsigned int cpu_id);
 
 #endif /* SOCFPGA_RESETMANAGER_H */
