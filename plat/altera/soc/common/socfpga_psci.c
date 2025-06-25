@@ -19,6 +19,7 @@
 #include <plat/common/platform.h>
 #if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
 #include "agilex3_cache.h"
+#include "agilex3_power_manager.h"
 #endif
 #include "ccu/ncore_ccu.h"
 #include "socfpga_mailbox.h"
@@ -55,6 +56,7 @@ int socfpga_pwr_domain_on(u_register_t mpidr)
 {
 	unsigned int cpu_id = plat_core_pos_by_mpidr(mpidr);
 #if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
+	unsigned int pch_cpu = 0x0;
 	/* TODO: Add in CPU FUSE from SDM */
 #else
 	uint32_t psci_boot = 0x00;
@@ -77,6 +79,13 @@ int socfpga_pwr_domain_on(u_register_t mpidr)
 
 	/* release core reset */
 #if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
+	pch_cpu = mmio_read_32(AGX3_PWRMGR(MPU_PCHCTLR)) &
+		  AGX3_PWRMGR_CPU_POWER_STATE_MASK;
+
+	/* Check if the CPU ON Request is post POR */
+	if (AGX3_PWRMGR_MPU_TRIGGER_PCH_CPU(1 << cpu_id) & (pch_cpu))
+		bl31_plat_reset_secondary_cpu(cpu_id);
+
 	bl31_plat_set_secondary_cpu_entrypoint(cpu_id);
 #else
 	mmio_setbits_32(SOCFPGA_RSTMGR(MPUMODRST), 1 << cpu_id);
@@ -232,6 +241,9 @@ static int socfpga_system_reset2(int is_vendor, int reset_type,
 #else
 	if (cold_reset_for_ecc_dbe()) {
 		mailbox_reset_cold();
+	} else {
+		/* Store magic number */
+		mmio_write_32(L2_RESET_DONE_REG, L2_RESET_DONE_STATUS);
 	}
 #endif
 

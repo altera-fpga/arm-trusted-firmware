@@ -208,6 +208,9 @@
 #define MAX_IO_DEVICES				4
 #define MAX_IO_BLOCK_DEVICES			2
 
+/* Define this, to support the SiPSVC V3 implementation. */
+#define SIP_SVC_V3				1
+
 #ifndef __ASSEMBLER__
 struct socfpga_bl31_params {
 	param_header_t h;

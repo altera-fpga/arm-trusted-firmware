@@ -22,18 +22,18 @@ static int wait_verify_fsm(uint16_t timeout, uint32_t peripheral_handoff)
 
 	/* Wait FSM ready */
 	do {
-		data = mmio_read_32(AGX5_PWRMGR(PSS_PGSTAT));
+		data = mmio_read_32(AGX3_PWRMGR(PSS_PGSTAT));
 		count++;
 		if (count >= 1000) {
 			return -ETIMEDOUT;
 		}
 
-	} while (AGX5_PWRMGR_PSS_STAT_BUSY(data) == AGX5_PWRMGR_PSS_STAT_BUSY_E_BUSY);
+	} while (AGX3_PWRMGR_PSS_STAT_BUSY(data) == AGX3_PWRMGR_PSS_STAT_BUSY_E_BUSY);
 
 	/* Verify PSS SRAM power gated */
-	pgstat = mmio_read_32(AGX5_PWRMGR(PSS_PGSTAT));
-	if (pgstat != (AGX5_PWRMGR_PSS_PGEN_OUT(peripheral_handoff))) {
-		return AGX5_PWRMGR_HANDOFF_PERIPHERAL;
+	pgstat = mmio_read_32(AGX3_PWRMGR(PSS_PGSTAT));
+	if (pgstat != (AGX3_PWRMGR_PSS_PGEN_OUT(peripheral_handoff))) {
+		return AGX3_PWRMGR_HANDOFF_PERIPHERAL;
 	}
 
 	return 0;
@@ -48,15 +48,15 @@ static int pss_sram_power_off(handoff *hoff_ptr)
 	peripheral_handoff = hoff_ptr->peripheral_pwr_gate_array;
 
 	/* Enable firewall for PSS SRAM */
-	mmio_write_32(AGX5_PWRMGR(PSS_FWENCTL),
-			AGX5_PWRMGR_PSS_FWEN(peripheral_handoff));
+	mmio_write_32(AGX3_PWRMGR(PSS_FWENCTL),
+			AGX3_PWRMGR_PSS_FWEN(peripheral_handoff));
 
 	/* Wait */
 	udelay(1);
 
 	/* Power gating PSS SRAM */
-	mmio_write_32(AGX5_PWRMGR(PSS_PGENCTL),
-			AGX5_PWRMGR_PSS_PGEN(peripheral_handoff));
+	mmio_write_32(AGX3_PWRMGR(PSS_PGENCTL),
+			AGX3_PWRMGR_PSS_PGEN(peripheral_handoff));
 
 	ret = wait_verify_fsm(1000, peripheral_handoff);
 

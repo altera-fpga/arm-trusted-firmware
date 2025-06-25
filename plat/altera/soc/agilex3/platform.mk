@@ -38,6 +38,7 @@ PLAT_BL_COMMON_SOURCES	:=	\
 			plat/altera/soc/common/drivers/ddr/ddr.c			\
 			plat/altera/soc/common/drivers/nand/nand.c			\
 			plat/altera/soc/common/lib/sha/sha.c				\
+			plat/altera/soc/common/lib/utils/alignment_utils.c \
 			plat/altera/soc/common/socfpga_delay_timer.c	\
 			plat/altera/soc/common/socfpga_dt.c
 

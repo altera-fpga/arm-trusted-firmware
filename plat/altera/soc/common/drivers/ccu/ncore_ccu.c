@@ -30,12 +30,6 @@ uint32_t poll_active_bit(uint32_t dir);
 #define CACHE_OPERATION_DONE				BIT(0)
 #define TIMEOUT_200MS					200
 
-#define __bf_shf(x)					(__builtin_ffsll(x) - 1)
-
-#define FIELD_PREP(_mask, _val)						\
-	({ \
-		((typeof(_mask))(_val) << __bf_shf(_mask)) & (_mask);	\
-	})
 
 #if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
 ncore_ccu_reg_t ncore_ccu_modules[] = {
@@ -629,7 +623,7 @@ uint32_t init_ncore_ccu(void)
 
 void setup_smmu_stream_id(void)
 {
-	/* Configure Stream ID for Agilex5 */
+	/* Configure Stream ID for Agilex3 */
 	mmio_write_32(SOCFPGA_SYSMGR(DMA_TBU_STREAM_ID_AX_REG_0_DMA0), DMA0);
 	mmio_write_32(SOCFPGA_SYSMGR(DMA_TBU_STREAM_ID_AX_REG_0_DMA1), DMA1);
 	mmio_write_32(SOCFPGA_SYSMGR(SDM_TBU_STREAM_ID_AX_REG_1_SDM), SDM);
@@ -644,7 +638,7 @@ void setup_smmu_stream_id(void)
 	mmio_write_32(SOCFPGA_SYSMGR(IO_TBU_STREAM_ID_AX_REG_2_TSN0), TSN0);
 	mmio_write_32(SOCFPGA_SYSMGR(IO_TBU_STREAM_ID_AX_REG_2_TSN1), TSN1);
 	mmio_write_32(SOCFPGA_SYSMGR(IO_TBU_STREAM_ID_AX_REG_2_TSN2), TSN2);
-	/* Enabled Stream ctrl register for Agilex5 */
+	/* Enabled Stream ctrl register for Agilex3 */
 	mmio_write_32(SOCFPGA_SYSMGR(DMA_TBU_STREAM_CTRL_REG_0_DMA0), ENABLE_STREAMID);
 	mmio_write_32(SOCFPGA_SYSMGR(DMA_TBU_STREAM_CTRL_REG_0_DMA1), ENABLE_STREAMID);
 	mmio_write_32(SOCFPGA_SYSMGR(SDM_TBU_STREAM_CTRL_REG_1_SDM), ENABLE_STREAMID);

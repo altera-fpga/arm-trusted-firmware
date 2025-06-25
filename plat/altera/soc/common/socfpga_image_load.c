@@ -14,7 +14,7 @@
 void plat_flush_next_bl_params(void)
 {
 	/*
-	 * We cannot flush these descriptors on the Agilex5 platform,
+	 * We cannot flush these descriptors on the Agilex3 platform,
 	 * since the BL2 runs on the OCRAM and this OCRAM is not cache coherent.
 	 */
 #if PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX3
