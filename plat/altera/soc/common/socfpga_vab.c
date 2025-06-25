@@ -116,7 +116,7 @@ int socfpga_vab_authentication(void **p_image, size_t *p_size)
 	memcpy_s(mbox_relocate_data_addr, (mbox_data_sz * sizeof(uint32_t)) / MBOX_WORD_BYTE,
 		(uint8_t *)mbox_data_addr, (mbox_data_sz * sizeof(uint32_t)) / MBOX_WORD_BYTE);
 
-	*((unsigned int *)mbox_relocate_data_addr) = CCERT_CMD_TEST_PGM_MASK;
+	*((unsigned int *)mbox_relocate_data_addr) = 0;
 
 	do {
 		/* Invoke SMC call to ATF to send the VAB certificate to SDM */

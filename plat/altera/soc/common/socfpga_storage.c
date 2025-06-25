@@ -145,7 +145,6 @@ static int check_fip(const uintptr_t spec)
 void socfpga_io_setup(int boot_source, unsigned long offset)
 {
 	int result;
-
 	fip_spec.offset = offset;
 
 	switch (boot_source) {

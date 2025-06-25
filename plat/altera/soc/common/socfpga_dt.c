@@ -86,6 +86,7 @@ int socfpga_dt_populate_gicv3_config(uintptr_t dt_addr, gicv3_driver_data_t *pla
 	err = fdt_get_reg_props_by_index(hw_config_dtb, node, 0, &addr, NULL);
 	if (err < 0) {
 		ERROR("SOCFPGA: Failed to read GICD reg property of GIC node\n");
+		return err;
 	} else {
 		plat_driver_data->gicd_base = addr;
 	}
