@@ -160,6 +160,11 @@
 #define SOCFPGA_ECC_QSPI_ECC_STARTACC					0x7C
 #define SOCFPGA_ECC_QSPI_ECC_WDCTRL					0x80
 
+/* IOSSM mailbox address */
+#define IOSSM_CMD_PARAM							0x18400438
+#define IOSSM_CMD_TRIG_OP						0x1840043C
+#define IOSSM_CMD_RESP_STATUS						0x1840045C
+
 #define DMA0_STREAM_CTRL_REG						0x10D1217C
 #define DMA1_STREAM_CTRL_REG						0x10D12180
 #define SDM_STREAM_CTRL_REG						0x10D12184
@@ -172,7 +177,7 @@
 #define TSN1_STREAM_CTRL_REG						0x10D121A0
 #define TSN2_STREAM_CTRL_REG						0x10D121A4
 
-/* Stream ID configuration value for agilex3 */
+/* Stream ID configuration value for Agilex3 */
 #define TSN0								0x00010001
 #define TSN1								0x00020002
 #define TSN2								0x00030003
@@ -185,7 +190,7 @@
 #define SDM								0x000A000A
 #define CORE_SIGHT_DEBUG						0x000B000B
 
-/* JTAG ID value for agilex3 */
+/* JTAG ID value for Agilex3 */
 #define A590_JTAG_ID							0x9000
 #define A594_JTAG_ID							0x40009000
 #define A5C0_JTAG_ID							0xC000

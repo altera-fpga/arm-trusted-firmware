@@ -61,6 +61,10 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 	console_16550_register(PLAT_INTEL_UART_BASE, PLAT_UART_CLOCK,
 			       PLAT_BAUDRATE, &console);
 
+	/* Enable TF-A BL31 logs when running from non-secure world also. */
+	console_set_scope(&console,
+		(CONSOLE_FLAG_BOOT | CONSOLE_FLAG_RUNTIME | CONSOLE_FLAG_CRASH));
+
 	setup_smmu_stream_id();
 
 	/*
@@ -142,7 +146,7 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 	SET_SECURITY_STATE(bl33_image_ep_info.h.attr, NON_SECURE);
 }
 
-static const interrupt_prop_t agx5_interrupt_props[] = {
+static const interrupt_prop_t agx3_interrupt_props[] = {
 	PLAT_INTEL_SOCFPGA_G1S_IRQ_PROPS(INTR_GROUP1S),
 	PLAT_INTEL_SOCFPGA_G0_IRQ_PROPS(INTR_GROUP0)
 };
@@ -150,8 +154,8 @@ static const interrupt_prop_t agx5_interrupt_props[] = {
 gicv3_driver_data_t plat_gicv3_gic_data = {
 	.gicd_base = PLAT_INTEL_SOCFPGA_GICD_BASE,
 	.gicr_base = PLAT_INTEL_SOCFPGA_GICR_BASE,
-	.interrupt_props = agx5_interrupt_props,
-	.interrupt_props_num = ARRAY_SIZE(agx5_interrupt_props),
+	.interrupt_props = agx3_interrupt_props,
+	.interrupt_props_num = ARRAY_SIZE(agx3_interrupt_props),
 	.rdistif_num = PLATFORM_CORE_COUNT,
 	.rdistif_base_addrs = rdistif_base_addrs,
 };
@@ -173,6 +177,17 @@ void bl31_platform_setup(void)
 	gicv3_distif_init();
 	gicv3_rdistif_init(plat_my_core_pos());
 	gicv3_cpuif_enable(plat_my_core_pos());
+
+#if SIP_SVC_V3
+	/*
+	 * Re-initialize the mailbox to include V3 specific routines.
+	 * In V3, this re-initialize is required because prior to BL31, U-Boot
+	 * SPL has its own mailbox settings and this initialization will
+	 * override to those settings as required by the V3 framework.
+	 */
+	mailbox_init();
+#endif
+
 	mailbox_hps_stage_notify(HPS_EXECUTION_STATE_SSBL);
 }
 
@@ -197,7 +212,7 @@ void bl31_plat_arch_setup(void)
 	uint32_t cpuid = 0x00;
 
 	cpuid = MPIDR_AFFLVL1_VAL(read_mpidr());
-	boot_core = ((mmio_read_32(AGX5_PWRMGR(MPU_BOOTCONFIG)) & 0xC00) >> 10);
+	boot_core = ((mmio_read_32(AGX3_PWRMGR(MPU_BOOTCONFIG)) & 0xC00) >> 10);
 	NOTICE("SOCFPGA: Boot Core = %x\n", boot_core);
 	NOTICE("SOCFPGA: CPU ID = %x\n", cpuid);
 	INFO("SOCFPGA: Invalidate Data cache\n");
@@ -205,6 +220,9 @@ void bl31_plat_arch_setup(void)
 
 	/* Invalidate for NS EL2 and EL1 */
 	invalidate_cache_low_el();
+
+	NOTICE("SOCFPGA: Setting CLUSTERECTRL_EL1\n");
+	setup_clusterectlr_el1();
 }
 
 /* Get non-secure image entrypoint for BL33. Zephyr and Linux */
@@ -246,7 +264,7 @@ void bl31_plat_set_secondary_cpu_entrypoint(unsigned int cpu_id)
 	/* Set bit for SMP secondary cores boot */
 	mmio_clrsetbits_32(L2_RESET_DONE_REG, BS_REG_MAGIC_KEYS_MASK,
 			   SMP_SEC_CORE_BOOT_REQ);
-	boot_core = (mmio_read_32(AGX5_PWRMGR(MPU_BOOTCONFIG)) & 0xC00);
+	boot_core = (mmio_read_32(AGX3_PWRMGR(MPU_BOOTCONFIG)) & 0xC00);
 	/* Update the p-channel based on cpu id */
 	pch_cpu = 1 << cpu_id;
 
@@ -265,13 +283,81 @@ void bl31_plat_set_secondary_cpu_entrypoint(unsigned int cpu_id)
 	mmio_write_64(RSTMGR_CPUxRESETBASELOW_CPU3, (uint64_t) plat_secondary_cpus_bl31_entry >> 2);
 
 	/* On all cores - temporary */
-	pchctlr_old = mmio_read_32(AGX5_PWRMGR(MPU_PCHCTLR));
+	pchctlr_old = mmio_read_32(AGX3_PWRMGR(MPU_PCHCTLR));
 	pchctlr_new = pchctlr_old | (pch_cpu<<1);
-	mmio_write_32(AGX5_PWRMGR(MPU_PCHCTLR), pchctlr_new);
+	mmio_write_32(AGX3_PWRMGR(MPU_PCHCTLR), pchctlr_new);
 
 	/* We will only release the target secondary CPUs */
 	/* Bit mask for each CPU BIT0-3 */
 	mmio_write_32(RSTMGR_CPUSTRELEASE_CPUx, pch_cpu);
+}
+
+void bl31_plat_reset_secondary_cpu(unsigned int cpu_id)
+{
+	uint32_t mask = 0x1;
+	uint32_t value = 0;
+	uint32_t pwrctlr_addr = 0;
+	uint32_t pwrstat_addr = 0;
+	uint32_t ret = 0;
+
+	mask <<= cpu_id;
+
+	switch (cpu_id) {
+	case 0:
+		pwrctlr_addr = AGX3_PWRMGR(CPU_PWRCTLR0);
+		pwrstat_addr = AGX3_PWRMGR(CPU_PWRSTAT0);
+		break;
+	case 1:
+		pwrctlr_addr = AGX3_PWRMGR(CPU_PWRCTLR1);
+		pwrstat_addr = AGX3_PWRMGR(CPU_PWRSTAT1);
+		break;
+	case 2:
+		pwrctlr_addr = AGX3_PWRMGR(CPU_PWRCTLR2);
+		pwrstat_addr = AGX3_PWRMGR(CPU_PWRSTAT2);
+		break;
+	case 3:
+		pwrctlr_addr = AGX3_PWRMGR(CPU_PWRCTLR3);
+		pwrstat_addr = AGX3_PWRMGR(CPU_PWRSTAT3);
+		break;
+	default:
+		ERROR("BL31: %s: Invalid CPU ID\n", __func__);
+		break;
+	}
+
+	/* PSTATE = 0, RUN_PCH = 1 */
+	mmio_write_32(pwrctlr_addr, AGX3_PWRMGR_CPU_RUN_PCH(1));
+
+	/* Poll for CPU OFF */
+	SOCFPGA_POLL(!((AGX3_PWRMGR_CPU_RUN_PCH(
+		     mmio_read_32(pwrstat_addr)) == 0) ||
+		     (AGX3_PWRMGR_CPU_SINGLE_FSM_STATE(
+		     mmio_read_32(pwrstat_addr)) != 0)),
+		     AGX3_PWRMGR_CPU_POLL_COUNT,
+		     AGX3_PWRMGR_CPU_DELAY_10_US, udelay, ret);
+
+	if (ret)
+		ERROR("BL31: %s: Timeout when polling for CPU OFF\n", __func__);
+
+	/* Performs the warm reset CPUx */
+	value = mmio_read_32(SOCFPGA_SYSMGR(BOOT_SCRATCH_WARM_9));
+	mmio_write_32(SOCFPGA_SYSMGR(BOOT_SCRATCH_WARM_9), value | mask);
+	udelay(1);
+	mmio_write_32(SOCFPGA_SYSMGR(BOOT_SCRATCH_WARM_9), value & ~mask);
+	udelay(1);
+
+	/* Power up sequence */
+	mmio_write_32(pwrctlr_addr, AGX3_PWRMGR_CPU_PROG_CPU_ON_STATE |
+		      AGX3_PWRMGR_CPU_RUN_PCH(1));
+
+	/* Poll for CPU ON */
+	SOCFPGA_POLL(!((AGX3_PWRMGR_CPU_RUN_PCH(
+		     mmio_read_32(pwrstat_addr)) == 0) ||
+		     AGX3_PWRMGR_CPU_SINGLE_FSM_STATE(
+		     mmio_read_32(pwrstat_addr)) == 0),
+		     AGX3_PWRMGR_CPU_POLL_COUNT,
+		     AGX3_PWRMGR_CPU_DELAY_10_US, udelay, ret);
+	if (ret)
+		ERROR("BL31: %s: Timeout when polling for CPU ON\n", __func__);
 }
 
 void bl31_plat_set_secondary_cpu_off(void)
@@ -282,15 +368,31 @@ void bl31_plat_set_secondary_cpu_off(void)
 
 	pch_cpu_off = 1 << cpu_id;
 
-	pch_cpu = mmio_read_32(AGX5_PWRMGR(MPU_PCHCTLR));
+	pch_cpu = mmio_read_32(AGX3_PWRMGR(MPU_PCHCTLR));
 	pch_cpu = pch_cpu & ~(pch_cpu_off << 1);
 
-	mmio_write_32(AGX5_PWRMGR(MPU_PCHCTLR), pch_cpu);
+	mmio_write_32(AGX3_PWRMGR(MPU_PCHCTLR), pch_cpu);
+}
+
+void setup_clusterectlr_el1(void)
+{
+	uint64_t value = 0;
+
+	/* Read CLUSTERECTLR_EL1 */
+	asm volatile("mrs %0, S3_0_C15_C3_4" : "=r"(value));
+
+	/* Disable broadcasting atomics */
+	value |= 0x80; /* set bit 7 */
+	/* Disable sending data with clean evicts */
+	value &= 0xFFFFBFFF; /* Mask out bit 14 */
+
+	/* Write CLUSTERECTLR_EL1 */
+	asm volatile("msr S3_0_C15_C3_4, %0" :: "r"(value));
 }
 
 void bl31_plat_runtime_setup(void)
 {
-	console_switch_state(CONSOLE_FLAG_RUNTIME|CONSOLE_FLAG_BOOT);
+	/* Dummy override function. */
 }
 
 void bl31_plat_enable_mmu(uint32_t flags)

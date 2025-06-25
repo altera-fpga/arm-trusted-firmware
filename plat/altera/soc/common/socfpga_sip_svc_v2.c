@@ -10,6 +10,7 @@
 #include <common/runtime_svc.h>
 #include <lib/mmio.h>
 
+#include "lib/utils/alignment_utils.h"
 #include "socfpga_mailbox.h"
 #include "socfpga_sip_svc.h"
 
