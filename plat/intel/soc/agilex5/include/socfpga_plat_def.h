@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2019, ARM Limited and Contributors. All rights reserved.
  * Copyright (c) 2019-2023, Intel Corporation. All rights reserved.
- * Copyright (c) 2024, Altera Corporation. All rights reserved.
+ * Copyright (c) 2024-2025, Altera Corporation. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -65,6 +65,8 @@
 #define PLAT_MMC_DATA_SIZE					(0x2000)
 #define SOCFPGA_MMC_BLOCK_SIZE					U(8192)
 #endif
+
+#define PLAT_NAND_SCRATCH_BUFF					(0x96400000)
 
 /* Register Mapping */
 #define SOCFPGA_CCU_NOC_REG_BASE				0x1c000000
