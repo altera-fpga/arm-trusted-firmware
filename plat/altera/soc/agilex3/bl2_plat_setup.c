@@ -163,10 +163,13 @@ void bl2_el3_plat_arch_setup(void)
 	unsigned long offset = 0;
 
 	struct cdns_sdmmc_params params = EMMC_INIT_PARAMS((uintptr_t) &cdns_desc,
-							   clkmgr_get_rate(CLKMGR_SDMMC_CLK_ID));
+							   SDEMMC_SDCLK);
 
+	params.sdmclk = clkmgr_get_rate(CLKMGR_SDMMC_CLK_ID);
 	mmc_info.mmc_dev_type = MMC_DEVICE_TYPE;
 	mmc_info.ocr_voltage = OCR_3_3_3_4 | OCR_3_2_3_3;
+
+	VERBOSE("SDMMC/NAND clock is %u\n", clkmgr_get_rate(CLKMGR_SDMMC_CLK_ID));
 
 	/* Request ownership and direct access to QSPI */
 	mailbox_hps_qspi_enable();
