@@ -402,7 +402,7 @@ int agilex3_ddr_init(handoff *hoff_ptr)
 		hw_ddr_size = GET_INLINE_ECC_HW_DDR_SIZE(hw_ddr_size);
 
 	/* TODO: To update config_ddr_size by using FDT in the future. */
-	config_ddr_size = 0x80000000;
+	config_ddr_size = DDR_HW_SIZE;
 	ddr_info_set[0].start = DRAM_BASE;
 	ddr_info_set[0].size = hw_ddr_size;
 
