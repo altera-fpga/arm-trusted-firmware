@@ -29,8 +29,8 @@
 #define PLAT_L2_RESET_REQ					0xB007C0DE
 #define PLAT_HANDOFF_OFFSET					0x0007F000
 #define PLAT_TIMER_BASE_ADDR					0x10D01000
-#define SOCFPGA_DTB_BASE			0x80020000
-#define DT_COMPATIBLE_STR			"arm,altera socfpga agilex3"
+#define SOCFPGA_DTB_BASE					0x80020000
+#define DT_COMPATIBLE_STR					"arm,altera socfpga agilex3"
 
 /* System Counter */
 /* TODO: Update back to 400MHz.
@@ -65,6 +65,11 @@
 #define PLAT_MMC_DATA_SIZE					(0x2000)
 #define SOCFPGA_MMC_BLOCK_SIZE					U(8192)
 #endif
+
+/* TODO: THIS IS A TEMP WORKAROUND DUE TO AGILEX5 CODE DESIGN
+ * PENDING, GIRISHA TO FIX IT
+ */
+#define PLAT_NAND_SCRATCH_BUFF					(0x96400000)
 
 /* Register Mapping */
 #define SOCFPGA_CCU_NOC_REG_BASE				0x1c000000
@@ -107,17 +112,18 @@
  *     0x2       : SMP secondary core boot requests
  *     0x3 - 0xF : Reserved for future use
  */
-#define BS_REG_MAGIC_KEYS_MASK			0x3C
-#define BS_REG_MAGIC_KEYS_POS			0x02
-#define L2_RESET_DONE_STATUS			(0x01 << BS_REG_MAGIC_KEYS_POS)
-#define SMP_SEC_CORE_BOOT_REQ			(0x02 << BS_REG_MAGIC_KEYS_POS)
-#define ALIGN_CHECK_64BIT_MASK			0x07
+#define BS_REG_MAGIC_KEYS_MASK					0x3C
+#define BS_REG_MAGIC_KEYS_POS					0x02
+#define L2_RESET_DONE_STATUS					(0x01 << BS_REG_MAGIC_KEYS_POS)
+#define SMP_SEC_CORE_BOOT_REQ					(0x02 << BS_REG_MAGIC_KEYS_POS)
+#define ALIGN_CHECK_64BIT_MASK					0x07
 
 /*******************************************************************************
  * Platform memory map related constants
  ******************************************************************************/
 #define DRAM_BASE						(0x80000000)
-#define DRAM_SIZE						(0x80000000)
+#define DRAM_SIZE						(0x70000000)
+#define DDR_HW_SIZE						(0x40000000)
 
 #define OCRAM_BASE						(0x00000000)
 #define OCRAM_SIZE						(0x00080000)
@@ -145,7 +151,7 @@
 #define BL2_LIMIT						(0x0007E000)
 
 #define BL31_BASE						(0x80000000)
-#define BL31_LIMIT						(0x82000000)
+#define BL31_LIMIT						(0x800F0000)
 /*******************************************************************************
  * UART related constants
  ******************************************************************************/
