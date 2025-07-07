@@ -66,10 +66,18 @@
 #define SOCFPGA_MMC_BLOCK_SIZE					U(8192)
 #endif
 
-/* TODO: THIS IS A TEMP WORKAROUND DUE TO AGILEX5 CODE DESIGN
- * PENDING, GIRISHA TO FIX IT
+/*
+ * NAND Setting - scratch buffer.
+ * The scratch buffer is used to store the data read from NAND flash.
+ * The size of the scratch buffer is 0x2000 bytes, which is the maximum page
+ * size for NAND flash devices.
+ *
+ * NOTE: As of now, the NAND boot is not supported in Agilex3.
+ *       The scratch buffer is defined here for future use if any.
+ *       The address 0x90A00000 is chosen to avoid conflicts with other
+ *       memory regions like DTB load region during Linux direct boot.
  */
-#define PLAT_NAND_SCRATCH_BUFF					(0x96400000)
+#define PLAT_NAND_SCRATCH_BUFF					(0x90A00000)
 
 /* Register Mapping */
 #define SOCFPGA_CCU_NOC_REG_BASE				0x1c000000
