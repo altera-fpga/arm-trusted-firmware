@@ -445,7 +445,12 @@
 #define CDMMC_DMA_MAX_BUFFER_SIZE		64*1024
 #define CDNSMMC_ADDRESS_MASK			U(0x0f)
 #define CONFIG_CDNS_DESC_COUNT			8
-#define SDEMMC_SDCLK				25000000
+
+/*
+ * To accommodate SDMCLK set to 200MHz
+ * TODO: To support various clock range
+ */
+#define SDEMMC_SDCLK				50000000
 
 enum sd_opcode {
 	SD_GO_IDLE_STATE = 0,
