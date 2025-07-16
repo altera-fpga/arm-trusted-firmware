@@ -794,7 +794,7 @@ static int inline_ecc_bist_mem_init(struct io96b_info *io96b_ctrl)
 				return -ENOEXEC;
 			}
 
-			read_count = read_interval_ms / TIMEOUT;
+			read_count = TIMEOUT / read_interval_ms;
 
 			while (!bist_success) {
 				uint32_t status = mmio_read_32(inst->io96b_csr_addr +
