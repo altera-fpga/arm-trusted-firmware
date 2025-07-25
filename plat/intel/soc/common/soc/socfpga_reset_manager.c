@@ -1205,6 +1205,8 @@ int socfpga_bridges_disable(uint32_t mask)
 
 		mmio_setbits_32(SOCFPGA_F2SDRAMMGR(SIDEBANDMGR_FLAGOUTCLR0),
 				f2s_idlereq);
+
+		udelay(5);
 	}
 #endif
 
