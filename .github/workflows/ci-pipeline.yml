@@ -48,7 +48,7 @@ jobs:
   ci-coverity:
     runs-on: [self-hosted,pg-embedded-runner]
     container:
-        image: amr-registry.sc.altera.com/pse-pswe-software-ba/embedded_coverity:ubuntu20.04.0_6-new-proxy-inbuilt
+        image: amr-registry.sc.altera.com/pse-pswe-software-ba/embedded_coverity:ubuntu20.04.0_6-cov-2024
     env:
       # Disable the warnings of Security violation. We need to check why this is trigger later, plaintext password.
       EC_DISABLE_VAL: project,system
@@ -62,42 +62,50 @@ jobs:
           cd applications.devops.build-bot.github-pr-workflow
           git checkout master
 
-      - name : Setup Coverity
-        uses: intel-innersource/frameworks.actions.setup-coverity@v1
-        env:
-          https_proxy: proxy-dmz.intel.com:912 # If the self-hosted runner has issues with the proxy
-        with:
-          version: '2022.3.1'
-
       - name: Run Coverity Build
         run: |
           cd applications.devops.build-bot.github-pr-workflow
           bash workflow_Coverity.sh ${{ github.workspace }} ${{ github.event.repository.name }} arm-trusted-firmware-github-workflow ${{ github.head_ref }} ${{ github.base_ref }}
 
-      - name: atf-coverity-report
+      - name: atf-coverity-report-prechange
         uses: actions/upload-artifact@v4
         with:
-          name: atf-coverity-report
-          path: ${{ github.workspace }}/atf_output_defect.json
+          name: atf-coverity-report-prechange
+          path: ${{ github.workspace }}/atf_output_defect_prechange.json
+          retention-days: 1
+
+      - name: atf-coverity-report-postchange
+        uses: actions/upload-artifact@v4
+        with:
+          name: atf-coverity-report-postchange
+          path: ${{ github.workspace }}/atf_output_defect_postchange.json
           retention-days: 1
 
   ci-coverity-parse-result:
     needs: ci-coverity
     runs-on: [self-hosted,pg-embedded-runner]
     container:
-        image: amr-registry.sc.altera.com/pse-pswe-software-ba/embedded_coverity:ubuntu20.04.0_6-new-proxy-inbuilt
+        image: amr-registry.sc.altera.com/pse-pswe-software-ba/embedded_coverity:ubuntu20.04.0_6-cov-2024
 
     steps:
-      - name: Download coverity result
+      - name: Download coverity result prechange
         uses: actions/download-artifact@v4
         with:
-           name: atf-coverity-report
+           name: atf-coverity-report-prechange
       - run: |
           ls
           pwd
           rm -rf /tmp/coverity-result-json
           mkdir /tmp/coverity-result-json
-          cp atf_output_defect.json /tmp/coverity-result-json/
+          cp atf_output_defect_prechange.json /tmp/coverity-result-json/
+          ls /tmp/coverity-result-json/*
+
+      - name: Download coverity result postchange
+        uses: actions/download-artifact@v4
+        with:
+           name: atf-coverity-report-postchange
+      - run: |
+          cp atf_output_defect_postchange.json /tmp/coverity-result-json/
           ls /tmp/coverity-result-json/*
 
       - uses: actions/checkout@v4
@@ -113,7 +121,7 @@ jobs:
           cd applications.devops.build-bot.github-pr-workflow
           mv /tmp/coverity-result-json/* .
           rm -rf /tmp/coverity-result-json
-          bash workflow_Coverity_Parser.sh ${{ github.workspace }} ${{ github.event.repository.name }} ${{ secrets.GITHUB_TOKEN }} ${{ github.event.pull_request.number }} 202503
+          bash workflow_Coverity_Parser.sh ${{ github.workspace }} ${{ github.event.repository.name }} ${{ secrets.GITHUB_TOKEN }} ${{ github.event.pull_request.number }}
 
       - name: atf-coverity-report
         uses: actions/upload-artifact@v4
