@@ -271,7 +271,7 @@ static uint32_t init_ddr_v3m_1600(void)
 		mmio_write_32(DBSC_DBPDRGA_0, 0xB3 + i * 0x20);
 		r7 = (mmio_read_32(DBSC_DBPDRGD_0) & 0x7);
 		r12 = (r5 >> 2);
-		if (r6 - r12 > 0) {
+		if ((int32_t)r6 - (int32_t)r12 > 0) {
 			mmio_write_32(DBSC_DBPDRGA_0, 0xB2 + i * 0x20);
 			r2 = (mmio_read_32(DBSC_DBPDRGD_0) & 0xFFFFFFF8);
 
