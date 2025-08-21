@@ -12,6 +12,7 @@
 #include "socfpga_plat_def.h"
 #include "socfpga_fcs.h"
 #include "socfpga_mailbox.h"
+#include "socfpga_private.h"
 #include "socfpga_sip_svc.h"
 #include "../lib/utils/alignment_utils.h"
 
