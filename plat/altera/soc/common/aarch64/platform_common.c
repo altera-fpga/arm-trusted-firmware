@@ -52,3 +52,37 @@ uint32_t socfpga_get_spsr_for_bl33_entry(void)
 	spsr = SPSR_64(mode, MODE_SP_ELX, DISABLE_ALL_EXCEPTIONS);
 	return spsr;
 }
+
+// common/lib/libc/socfpga_memcpy_s.c
+int socfpga_memcpy_s(void *dst, size_t dsize, void *src, size_t ssize)
+{
+	unsigned int *s = (unsigned int *)src;
+	unsigned int *d = (unsigned int *)dst;
+
+	if (!dst || !src) {
+		return -ENOMEM;
+	}
+
+	if (!dsize || !ssize) {
+		return -ERANGE;
+	}
+
+	if (ssize > dsize) {
+		return -EINVAL;
+	}
+
+	if (d > s && d < s + ssize) {
+		return -EOPNOTSUPP;
+	}
+
+	if (s > d && s < d + dsize) {
+		return -EOPNOTSUPP;
+	}
+
+	// Backward word-wise copy
+	while (ssize--) {
+		d[ssize] = s[ssize];
+	}
+
+	return 0;
+}
