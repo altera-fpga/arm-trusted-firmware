@@ -92,6 +92,27 @@
 		(reg) |= ((uint64_t)(val) << (regfield##_SHIFT)); \
 	} while (0)
 
+/* Returns the bit shift (position) of the least significant set bit in x */
+#define __bf_shf(x)			(__builtin_ffsll(x) - 1U)
+
+/*
+ * Extracts the value of a bit field specified by _mask from _reg
+ * Example: FIELD_GET(MASK, reg) gives the value of the bits defined by MASK
+ */
+#define FIELD_GET(_mask, _reg)						\
+	({								\
+		(typeof(_mask))(((_reg) & (_mask)) >> __bf_shf(_mask));	\
+	})
+
+/*
+ * Prepares a value _val to be placed into a bit field specified by _mask
+ * Example: FIELD_PREP(MASK, val) shifts val into the correct position and masks it
+ */
+#define FIELD_PREP(_mask, _val)						\
+	({ \
+		((typeof(_mask))(_val) << __bf_shf(_mask)) & (_mask);	\
+	})
+
 /*
  * This variant of div_round_up can be used in macro definition but should not
  * be used in C code as the `div` parameter is evaluated twice.
