@@ -136,8 +136,10 @@ typedef struct fcs_decrypt_payload_t {
 } fcs_decrypt_payload;
 
 typedef struct fcs_encrypt_ext_payload_t {
+#if PLATFORM_MODEL != PLAT_SOCFPGA_N5X
 	uint32_t session_id;
 	uint32_t context_id;
+#endif
 	uint32_t crypto_header;
 	uint32_t src_addr;
 	uint32_t src_size;
@@ -146,8 +148,10 @@ typedef struct fcs_encrypt_ext_payload_t {
 } fcs_encrypt_ext_payload;
 
 typedef struct fcs_decrypt_ext_payload_t {
+#if PLATFORM_MODEL != PLAT_SOCFPGA_N5X
 	uint32_t session_id;
 	uint32_t context_id;
+#endif
 	uint32_t crypto_header;
 	uint32_t owner_id[2];
 	uint32_t src_addr;

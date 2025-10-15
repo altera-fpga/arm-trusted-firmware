@@ -246,7 +246,11 @@ uint8_t fcs_sdos_crypto_request_cb(void *resp_desc, void *cmd_desc, uint64_t *re
 	ret_args[ret_args_len++] = INTEL_SIP_SMC_STATUS_OK;
 	ret_args[ret_args_len++] = resp->err_code;
 	/* Encrypted/Decrypted data size written to the destination buffer */
+#if PLATFORM_MODEL == PLAT_SOCFPGA_N5X
+	ret_args[ret_args_len++] = resp->resp_data[0];
+#else
 	ret_args[ret_args_len++] = resp->resp_data[3];
+#endif
 
 	return ret_args_len;
 }
@@ -633,8 +637,10 @@ int intel_fcs_encryption_ext(uint32_t smc_fid, uint32_t trans_id,
 #endif
 
 	fcs_encrypt_ext_payload payload = {
+#if PLATFORM_MODEL != PLAT_SOCFPGA_N5X
 		session_id,
 		context_id,
+#endif
 		FCS_CRYPTION_CRYPTO_HEADER,
 		src_addr_sdm,
 		src_size,
@@ -711,8 +717,10 @@ int intel_fcs_decryption_ext(uint32_t smc_fid, uint32_t trans_id,
 	inv_dcache_range(src_addr, src_size); /* flush cache before mmio read to avoid reading old values */
 	id_offset = src_addr + FCS_OWNER_ID_OFFSET;
 	fcs_decrypt_ext_payload payload = {
+#if PLATFORM_MODEL != PLAT_SOCFPGA_N5X
 		session_id,
 		context_id,
+#endif
 		FCS_CRYPTION_CRYPTO_HEADER,
 		{mmio_read_32(id_offset),
 		mmio_read_32(id_offset + MBOX_WORD_BYTE)},
