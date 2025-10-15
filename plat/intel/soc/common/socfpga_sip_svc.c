@@ -550,7 +550,14 @@ static uint32_t intel_rsu_get_device_info(uint32_t *respbuf,
 					  unsigned int respbuf_sz)
 {
 	if (mailbox_rsu_get_device_info((uint32_t *)respbuf, respbuf_sz) < 0) {
+#if PLATFORM_MODEL == PLAT_SOCFPGA_N5X
+		/* N5X SDM firmware doesn't support device info,
+		 * returns UNKNOWN_COMMAND (3).
+		 */
+		return SMC_UNK;
+#else
 		return INTEL_SIP_SMC_RSU_ERROR;
+#endif
 	}
 
 	return INTEL_SIP_SMC_STATUS_OK;
