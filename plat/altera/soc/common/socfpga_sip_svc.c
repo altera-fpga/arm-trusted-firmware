@@ -773,7 +773,6 @@ static uint32_t intel_sdm_safe_inject_seu_err(uint32_t *command, uint32_t len)
 	return INTEL_SIP_SMC_STATUS_OK;
 }
 
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
 /* SMMU HPS Remapper */
 void intel_smmu_hps_remapper_init(uint64_t *mem)
 {
@@ -793,7 +792,7 @@ void intel_smmu_hps_remapper_init(uint64_t *mem)
 int intel_smmu_hps_remapper_config(uint32_t remapper_bypass)
 {
 	/* Read out the JTAG-ID from boot scratch register */
-	if (is_agilex5_A5F0() || is_agilex5_A5F4()) {
+	if (!is_agilex5_A36F0()) {
 		if (remapper_bypass == 0x01) {
 			g_remapper_bypass = remapper_bypass;
 			mmio_write_32(SOCFPGA_SYSMGR(SDM_BE_ARADDR_REMAP), 0);
@@ -818,7 +817,6 @@ static void intel_inject_io96b_ecc_err(const uint32_t *syndrome, const uint32_t 
 	/* Clear response_ready BIT0 of status_register before sending next command. */
 	mmio_clrbits_32(IOSSM_CMD_RESP_STATUS, IOSSM_CMD_STATUS_RESP_READY);
 }
-#endif
 
 #if SIP_SVC_V3
 uint8_t sip_smc_cmd_cb_ret2(void *resp_desc, void *cmd_desc, uint64_t *ret_args)
