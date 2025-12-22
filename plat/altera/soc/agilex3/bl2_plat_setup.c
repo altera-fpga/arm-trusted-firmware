@@ -48,7 +48,7 @@
 static struct mmc_device_info mmc_info;
 
 /* Declare cadence idmac descriptor */
-extern struct cdns_idmac_desc cdns_desc[8] __aligned(32);
+extern struct cdns_idmac_desc cdns_desc[8] __aligned(8);
 
 const mmap_region_t agilex_plat_mmap[] = {
 	MAP_REGION_FLAT(DRAM_BASE, DRAM_SIZE,

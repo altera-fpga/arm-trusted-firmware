@@ -1932,7 +1932,7 @@ uintptr_t sip_smc_handler_v1(uint32_t smc_fid,
 	uint32_t seu_respbuf[3];
 	int status = INTEL_SIP_SMC_STATUS_OK;
 	int mbox_status;
-	unsigned int len_in_resp;
+	unsigned int len_in_resp = 0;
 	u_register_t x5, x6, x7;
 
 	switch (smc_fid) {
