@@ -30,12 +30,6 @@ uint32_t poll_active_bit(uint32_t dir);
 #define CACHE_OPERATION_DONE				BIT(0)
 #define TIMEOUT_200MS					200
 
-#define __bf_shf(x)					(__builtin_ffsll(x) - 1)
-
-#define FIELD_PREP(_mask, _val)						\
-	({ \
-		((typeof(_mask))(_val) << __bf_shf(_mask)) & (_mask);	\
-	})
 
 #if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX5
 ncore_ccu_reg_t ncore_ccu_modules[] = {
