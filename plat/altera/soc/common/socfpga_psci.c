@@ -123,10 +123,6 @@ void socfpga_pwr_domain_off(const psci_power_state_t *target_state)
 		VERBOSE("%s: target_state->pwr_domain_state[%lu]=%x\n",
 			__func__, i, target_state->pwr_domain_state[i]);
 
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
-	flush_l3_dcache();
-#endif
-
 	/* Prevent interrupts from spuriously waking up this cpu */
 #ifdef GICV3_SUPPORT_GIC600
 	gicv3_cpuif_disable(plat_my_core_pos());
