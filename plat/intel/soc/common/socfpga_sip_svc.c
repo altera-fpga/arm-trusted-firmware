@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2019-2025, Arm Limited and Contributors. All rights reserved.
  * Copyright (c) 2019-2023, Intel Corporation. All rights reserved.
- * Copyright (c) 2024-2025, Altera Corporation. All rights reserved.
+ * Copyright (c) 2024-2026, Altera Corporation. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -1513,11 +1513,8 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 
 	case ALTERA_SIP_SMC_ASYNC_FCS_RANDOM_NUMBER_EXT:
 	{
-		uint32_t session_id = (uint32_t)x2;
-		uint32_t context_id = (uint32_t)x3;
 		uint64_t ret_random_addr = (uint64_t)x4;
 		uint32_t random_len = (uint32_t)SMC_GET_GP(handle, CTX_GPREG_X5);
-		uint32_t crypto_header = 0U;
 
 		if ((random_len > (FCS_RANDOM_EXT_MAX_WORD_SIZE * MBOX_WORD_BYTE)) ||
 		    (random_len == 0U) ||
@@ -1533,16 +1530,26 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 			SMC_RET1(handle, status);
 		}
 
+#if PLATFORM_MODEL != PLAT_SOCFPGA_N5X
+		uint32_t session_id = (uint32_t)x2;
+		uint32_t context_id = (uint32_t)x3;
+		uint32_t crypto_header = 0U;
+
 		crypto_header = ((FCS_CS_FIELD_FLAG_INIT | FCS_CS_FIELD_FLAG_FINALIZE) <<
 				  FCS_CS_FIELD_FLAG_OFFSET);
 		fcs_rng_payload payload = {session_id, context_id,
 					   crypto_header, random_len};
+#endif
 
 		status = mailbox_send_cmd_async_v3(GET_CLIENT_ID(x1),
 						   GET_JOB_ID(x1),
 						   MBOX_FCS_RANDOM_GEN,
+#if PLATFORM_MODEL != PLAT_SOCFPGA_N5X
 						   (uint32_t *)&payload,
 						   sizeof(payload) / MBOX_WORD_BYTE,
+#else
+						   NULL, 0U,
+#endif
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   (uint32_t *)ret_random_addr,
