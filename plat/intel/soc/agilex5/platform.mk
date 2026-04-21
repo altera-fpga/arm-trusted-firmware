@@ -146,6 +146,11 @@ SOCFPGA_UART_CONFIG  := 	0
 $(eval $(call assert_boolean,SOCFPGA_UART_CONFIG))
 $(eval $(call add_define,SOCFPGA_UART_CONFIG))
 
+# Configs for QSPI Owner Release Configuration
+SOCFPGA_QSPI_RELEASE  := 	0
+$(eval $(call assert_boolean,SOCFPGA_QSPI_RELEASE))
+$(eval $(call add_define,SOCFPGA_QSPI_RELEASE))
+
 PROGRAMMABLE_RESET_ADDRESS	:= 0
 RESET_TO_BL2			:= 1
 BL2_INV_DCACHE			:= 0

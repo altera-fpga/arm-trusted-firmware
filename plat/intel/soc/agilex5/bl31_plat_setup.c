@@ -391,7 +391,12 @@ void setup_clusterectlr_el1(void)
 
 void bl31_plat_runtime_setup(void)
 {
-	/* TODO: Dummy */
+#if SOCFPGA_QSPI_RELEASE
+	/* Release QSPI ownership back to SDM before jumping to bootloader */
+	/* This allows FPGA fabric to access QSPI via SDM after HPS boot */
+	mailbox_set_qspi_close();
+	INFO("BL31: QSPI ownership released to SDM\n");
+#endif
 }
 
 void bl31_plat_enable_mmu(uint32_t flags)
