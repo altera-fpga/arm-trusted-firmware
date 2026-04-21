@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2019, ARM Limited and Contributors. All rights reserved.
  * Copyright (c) 2019, Intel Corporation. All rights reserved.
- * Copyright (c) 2024-2025, Altera Corporation. All rights reserved.
+ * Copyright (c) 2024-2026, Altera Corporation. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -314,9 +314,7 @@ int cad_qspi_indirect_read_start_bank(uint32_t flash_addr, uint32_t num_bytes)
 {
 	mmio_write_32(CAD_QSPI_OFFSET + CAD_QSPI_INDRDSTADDR, flash_addr);
 	mmio_write_32(CAD_QSPI_OFFSET + CAD_QSPI_INDRDCNT, num_bytes);
-	mmio_write_32(CAD_QSPI_OFFSET + CAD_QSPI_INDRD,
-			CAD_QSPI_INDRD_START |
-			CAD_QSPI_INDRD_IND_OPS_DONE);
+	mmio_write_32(CAD_QSPI_OFFSET + CAD_QSPI_INDRD, CAD_QSPI_INDRD_START);
 
 	return 0;
 }
@@ -639,6 +637,7 @@ int cad_qspi_read_bank(uint8_t *buffer, uint32_t offset, uint32_t size)
 	uint32_t read_count = 0;
 	int level = 1, count = 0, i;
 	uint8_t *read_data;
+	uint32_t timeout = 1000000;
 
 	status = cad_qspi_indirect_read_start_bank(offset, size);
 
@@ -661,6 +660,17 @@ int cad_qspi_read_bank(uint8_t *buffer, uint32_t offset, uint32_t size)
 #endif
 		} while (level > 0);
 	}
+
+	while (!(mmio_read_32(CAD_QSPI_OFFSET + CAD_QSPI_INDRD) &
+		 CAD_QSPI_INDRD_IND_OPS_DONE)) {
+
+		if (--timeout == 0) {
+			ERROR("QSPI: indirect read timeout\n");
+			return -1;
+		}
+	}
+
+	mmio_write_32(CAD_QSPI_OFFSET + CAD_QSPI_INDRD, CAD_QSPI_INDRD_IND_OPS_DONE);
 
 	return 0;
 }
