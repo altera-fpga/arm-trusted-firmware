@@ -259,16 +259,21 @@ int cad_qspi_n25q_enable(void)
 
 int cad_qspi_n25q_wait_for_program_and_erase(int program_only)
 {
-	uint32_t status, flag_sr;
+	int ret = 0;
+	uint32_t sr = 0;
+	uint32_t flag_sr = 0;
 	int count = 0;
 
 	while (count < CAD_QSPI_COMMAND_TIMEOUT) {
-		status = cad_qspi_device_status(&status);
-		if (status != 0) {
+		ret = cad_qspi_device_status(&sr);
+		if (ret != 0) {
 			ERROR("Error getting device status\n");
 			return -1;
 		}
-		if (!CAD_QSPI_STIG_SR_BUSY(status))
+
+		sr &= 0xFF;	/* ONLY 1 BYTE IS VALID */
+
+		if (!CAD_QSPI_STIG_SR_BUSY(sr))
 			break;
 		count++;
 	}
@@ -281,26 +286,27 @@ int cad_qspi_n25q_wait_for_program_and_erase(int program_only)
 	count = 0;
 
 	while (count < CAD_QSPI_COMMAND_TIMEOUT) {
-		status = cad_qspi_stig_read_cmd(CAD_QSPI_STIG_OPCODE_RDFLGSR,
-				0, 1, &flag_sr);
-		if (status != 0) {
+		ret = cad_qspi_stig_read_cmd(CAD_QSPI_STIG_OPCODE_RDFLGSR, 0, 1, &flag_sr);
+
+		if (ret != 0) {
 			ERROR("Error waiting program and erase.\n");
-			return status;
+			return ret;
 		}
 
 		if ((program_only &&
-			CAD_QSPI_STIG_FLAGSR_PROGRAMREADY(flag_sr)) ||
-			(!program_only &&
-			CAD_QSPI_STIG_FLAGSR_ERASEREADY(flag_sr)))
+		CAD_QSPI_STIG_FLAGSR_PROGRAMREADY(flag_sr)) ||
+		(!program_only && CAD_QSPI_STIG_FLAGSR_ERASEREADY(flag_sr))) {
 			break;
+		}
+		count++;
 	}
 
-	if (count >= CAD_QSPI_COMMAND_TIMEOUT)
+	if (count >= CAD_QSPI_COMMAND_TIMEOUT) {
 		ERROR("Timed out waiting for program and erase\n");
+	}
 
 	if ((program_only && CAD_QSPI_STIG_FLAGSR_PROGRAMERROR(flag_sr)) ||
-			(!program_only &&
-			CAD_QSPI_STIG_FLAGSR_ERASEERROR(flag_sr))) {
+	(!program_only && CAD_QSPI_STIG_FLAGSR_ERASEERROR(flag_sr))) {
 		ERROR("Error programming/erasing flash\n");
 		cad_qspi_stig_cmd(CAD_QSPI_STIG_OPCODE_CLFSR, 0);
 		return -1;
