@@ -427,20 +427,23 @@ void sd_host_oper_mode(enum sd_opr_modes opr_mode)
 	}
 }
 
-void card_reset(bool power_enable)
+void cdns_sdmmc_card_reset(void)
 {
 	uint32_t reg_value = 0;
 
-	/* Reading SRS10 value before writing */
+	/* Power off: per SDHCI/JEDEC spec, BVS must be cleared when BP=0 */
 	reg_value = mmio_read_32(cdns_params.reg_base + SDHC_CDNS_SRS10);
-
-	if (power_enable == true) {
-		reg_value &= ~((7 << SDMMC_CDN_BVS) | (1 << SDMMC_CDN_BP));
-		reg_value = ((1 << SDMMC_CDN_BVS) | (1 << SDMMC_CDN_BP));
-	} else {
-		reg_value &= ~((7 << SDMMC_CDN_BVS) | (1 << SDMMC_CDN_BP));
-	}
+	reg_value &= ~((7 << SDMMC_CDN_BVS) | (1 << SDMMC_CDN_BP));
 	mmio_write_32(cdns_params.reg_base + SDHC_CDNS_SRS10, reg_value);
+	mdelay(20);
+
+	/*
+	 * BVS=0b111 = 3.3V ; BVS=0b101 = 1.8V
+	 * Using 3.3V for High Speed(SD)/legacy(eMMC) protocol.
+	 */
+	reg_value |= ((7 << SDMMC_CDN_BVS) | (1 << SDMMC_CDN_BP));
+	mmio_write_32(cdns_params.reg_base + SDHC_CDNS_SRS10, reg_value);
+	mdelay(50);
 }
 
 void high_speed_enable(bool mode)
@@ -501,14 +504,8 @@ void sdmmc_host_init(bool uhs2_enable)
 	/** need to implement*/
 	}
 
-	/* Card reset */
-
-	card_reset(1);
-	udelay(2500);
-	card_reset(0);
-	udelay(2500);
-	card_reset(1);
-	udelay(2500);
+	/* Card reset - for both eMMC and SD card */
+	cdns_sdmmc_card_reset();
 
 	/* Enable Interrupt Flags*/
 	mmio_write_32((cdns_params.reg_base + SDHC_CDNS_SRS13), ~0);
@@ -558,7 +555,7 @@ int cdns_send_cmd(struct mmc_cmd *cmd)
 	timeout = TIMEOUT;
 	do {
 		udelay(100);
-		if (--timeout <= 0) {
+		if (--timeout == 0) {
 			udelay(50);
 			NOTICE("Timeout occur data and cmd line %x\n",
 			 mmio_read_32(cdns_params.reg_base + SDHC_CDNS_SRS09));
@@ -622,10 +619,40 @@ int cdns_send_cmd(struct mmc_cmd *cmd)
 
 	timeout = TIMEOUT;
 
+	/* Wait for command completion or error */
 	do {
 		udelay(CDNS_TIMEOUT);
 		status = mmio_read_32(cdns_params.reg_base + SDHC_CDNS_SRS12);
-	} while (((status & (INT_CMD_DONE | ERROR_INT)) == 0) && (timeout-- > 0));
+		if (--timeout == 0) {
+			ERROR("Command %u timeout waiting for response\n",
+			      cmd->cmd_idx);
+			break;
+		}
+	} while (((status & (INT_CMD_DONE | ERROR_INT)) == 0));
+
+	/* For data commands, wait for Data Transfer Over (DTO) or data ready */
+	if ((cmd_flags & DATA_PRESENT) != 0U) {
+		timeout = TIMEOUT;
+		do {
+			udelay(100);
+			status = mmio_read_32(cdns_params.reg_base + SDHC_CDNS_SRS12);
+			if (--timeout == 0) {
+				ERROR("Command %u timeout waiting for data\n",
+				      cmd->cmd_idx);
+				ERROR("SRS12=0x%08x SRS09=0x%08x\n",
+				      mmio_read_32(cdns_params.reg_base +
+						     SDHC_CDNS_SRS12),
+				      mmio_read_32(cdns_params.reg_base +
+						     SDHC_CDNS_SRS09));
+				break;
+			}
+		/*
+		 * In ADMA2 mode the controller raises Transfer Complete (bit 1)
+		 * when the DMA finishes, TRAN_COMP.
+		 */
+		} while (((status & (INT_DTO | INT_TXDR | INT_RXDR | TRAN_COMP)) == 0) &&
+				((status & ERROR_INT) == 0));
+	}
 
 	mmio_write_32(cdns_params.reg_base + SDHC_CDNS_SRS12, (SRS_12_CC_EN));
 	status_check = mmio_read_32(cdns_params.reg_base + SDHC_CDNS_SRS12) & 0xffff8000;
@@ -735,17 +762,23 @@ int cdns_mmc_init(struct cdns_sdmmc_params *params,
 
 	memcpy(&cdns_params, params, sizeof(struct cdns_sdmmc_params));
 
+	/*
+	 * Set device type before cdns_sd_host_init() so sdmmc_host_init()
+	 * can branch between eMMC and SD card reset sequences.
+	 */
+	cdns_params.cdn_sdmmc_dev_type = info->mmc_dev_type;
+
 	cdns_set_sdmmc_var(&sdmmc_combo_phy_reg, &sdmmc_sdhc_reg);
 	result = cdns_sd_host_init(&sdmmc_combo_phy_reg, &sdmmc_sdhc_reg);
 	if (result < 0) {
 		return result;
 	}
 
-	cdns_params.cdn_sdmmc_dev_type = info->mmc_dev_type;
 	cdns_params.cdn_sdmmc_dev_mode = SD_DS;
 
+	/* Select operating clock based on detected device type */
 	result = mmc_init(&cdns_sdmmc_ops, params->clk_rate, params->bus_width,
-			params->flags, info);
+				params->flags, info);
 
 	return result;
 }

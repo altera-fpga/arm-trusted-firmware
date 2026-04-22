@@ -64,20 +64,3 @@ int cdns_sd_card_detect(void)
 
 	return 0;
 }
-
-int cdns_emmc_card_reset(void)
-{
-	uint32_t _status = 0;
-
-	/* Reset embedded card */
-	mmio_write_32(SDMMC_CDN(SRS10), (7 << SDMMC_CDN_BVS) | (1 << SDMMC_CDN_BP) | _status);
-	mdelay(68680); /* ~68680us */
-	mmio_write_32(SDMMC_CDN(SRS10), (7 << SDMMC_CDN_BVS) | (0 << SDMMC_CDN_BP));
-	udelay(340); /* ~340us */
-
-	/* Turn on supply voltage */
-	/* BVS = 7, BP = 1, BP2 only in UHS2 mode */
-	mmio_write_32(SDMMC_CDN(SRS10), (7 << SDMMC_CDN_BVS) | (1 << SDMMC_CDN_BP) | _status);
-
-	return 0;
-}

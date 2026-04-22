@@ -446,10 +446,16 @@
 #define CONFIG_CDNS_DESC_COUNT			8
 
 /*
- * To accommodate SDMCLK set to 200MHz
- * TODO: To support various clock range
+ * SD card, according to SD Host Controller Simplified Specification
+ * will be using High Speed default 50MHz as we have enabled HS mode.
+ * eMMC, according to JEDEC JESD84-B51, will be using legacy default
+ * 26MHz for max compatibility.
  */
+#if MMC_DEVICE_TYPE == 1
 #define SDEMMC_SDCLK				50000000U
+#else
+#define SDEMMC_SDCLK				26000000U
+#endif
 
 enum sd_opcode {
 	SD_GO_IDLE_STATE = 0,

@@ -234,6 +234,5 @@ struct cdns_sdmmc_combo_phy {
 int cdns_sdmmc_write_phy_reg(uint32_t phy_reg_addr, uint32_t phy_reg_addr_value,
 			uint32_t phy_reg_data, uint32_t phy_reg_data_value);
 int cdns_sd_card_detect(void);
-int cdns_emmc_card_reset(void);
 
 #endif
