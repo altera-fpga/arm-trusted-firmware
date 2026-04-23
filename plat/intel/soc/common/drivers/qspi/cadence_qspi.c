@@ -20,7 +20,6 @@
 #define LESS(a, b)   (((a) < (b)) ? (a) : (b))
 #define MORE(a, b)   (((a) > (b)) ? (a) : (b))
 
-
 uint32_t qspi_device_size;
 int cad_qspi_cs;
 
@@ -163,7 +162,7 @@ int cad_qspi_stig_read_cmd(uint32_t opcode, uint32_t dummy, uint32_t num_bytes,
 		CAD_QSPI_FLASHCMD_NUMWRDATABYTES(0) |
 		CAD_QSPI_FLASHCMD_NUMDUMMYBYTES(dummy);
 
-	if (cad_qspi_stig_cmd_helper(cad_qspi_cs, cmd)) {
+	if (cad_qspi_stig_cmd_helper(cad_qspi_cs, cmd) != 0) {
 		ERROR("failed to send stig cmd\n");
 		return -1;
 	}
@@ -293,9 +292,8 @@ int cad_qspi_n25q_wait_for_program_and_erase(int program_only)
 			return ret;
 		}
 
-		if ((program_only &&
-		CAD_QSPI_STIG_FLAGSR_PROGRAMREADY(flag_sr)) ||
-		(!program_only && CAD_QSPI_STIG_FLAGSR_ERASEREADY(flag_sr))) {
+		if ((program_only && CAD_QSPI_STIG_FLAGSR_PROGRAMERROR(flag_sr)) ||
+		    (!program_only && CAD_QSPI_STIG_FLAGSR_ERASEERROR(flag_sr))) {
 			break;
 		}
 		count++;
@@ -418,7 +416,6 @@ int cad_qspi_erase_sector(uint32_t addr)
 void cad_qspi_calibration(uint32_t dev_clk, uint32_t qspi_clk_mhz)
 {
 	int status;
-	uint32_t dev_sclk_mhz = 27; /*min value to get biggest 0xF div factor*/
 	uint32_t data_cap_delay;
 	uint32_t sample_rdid;
 	uint32_t rdid;
@@ -426,70 +423,75 @@ void cad_qspi_calibration(uint32_t dev_clk, uint32_t qspi_clk_mhz)
 	uint32_t div_bits;
 	int first_pass, last_pass;
 
-	/*1.  Set divider to bigger value (slowest SCLK)
-	 *2.  RDID and save the value
+	/* 1. Set divider to the slowest possible SCLK (0xF)
+	 * 2. RDID and save the value as a reference
 	 */
-	div_actual = (qspi_clk_mhz + (dev_sclk_mhz - 1)) / dev_sclk_mhz;
-	div_bits = (((div_actual + 1) / 2) - 1);
 	status = cad_qspi_set_baudrate_div(0xf);
 
 	status = cad_qspi_stig_read_cmd(CAD_QSPI_STIG_OPCODE_RDID,
 					0, 3, &sample_rdid);
-	if (status != 0)
+	if (status != 0) {
 		return;
+	}
 
-	/*3. Set divider to the intended frequency
-	 *4.  Set the read delay = 0
-	 *5.  RDID and check whether the value is same as item 2
-	 *6.  Increase read delay and compared the value against item 2
-	 *7.  Find the range of read delay that have same as
-	 *    item 2 and divide it to 2
+	/* 3. Set divider to the intended frequency.
+	 * Rounding: (qspi_clk_mhz + (dev_clk / 2)) / dev_clk
 	 */
-	div_actual = (qspi_clk_mhz + (dev_clk - 1)) / dev_clk;
-	div_bits = (((div_actual + 1) / 2) - 1);
-	status = cad_qspi_set_baudrate_div(div_bits);
-	if (status != 0)
-		return;
+	div_actual = (qspi_clk_mhz + (dev_clk / 2)) / dev_clk;
 
+	/* Safety check: ensure we don't overclock or use invalid bits */
+	if (div_actual < 2) {
+		div_actual = 2;
+	}
+	div_bits = (((div_actual + 1) / 2) - 1);
+	if (div_bits > 0xf) {
+		div_bits = 0xf;
+	}
+
+	status = cad_qspi_set_baudrate_div(div_bits);
+	if (status != 0) {
+		return;
+	}
+
+	/* Sweep through read delay values (0.0 to 1.0 cycle) */
 	data_cap_delay = 0;
 	first_pass = -1;
 	last_pass = -1;
 
 	do {
-		if (status != 0)
-			break;
+		/* Update the capture delay register */
+		mmio_write_32(CAD_QSPI_OFFSET + CAD_QSPI_RDDATACAP,
+			      CAD_QSPI_RDDATACAP_BYP(1) |
+			      CAD_QSPI_RDDATACAP_DELAY(data_cap_delay));
+
 		status = cad_qspi_stig_read_cmd(CAD_QSPI_STIG_OPCODE_RDID, 0,
 						3, &rdid);
-		if (status != 0)
-			break;
-		if (rdid == sample_rdid) {
-			if (first_pass == -1)
+
+		if (status == 0 && rdid == sample_rdid) {
+			if (first_pass == -1) {
 				first_pass = data_cap_delay;
-			else
-				last_pass = data_cap_delay;
+			}
+			last_pass = data_cap_delay;
 		}
 
 		data_cap_delay++;
-
-		mmio_write_32(CAD_QSPI_OFFSET + CAD_QSPI_RDDATACAP,
-				CAD_QSPI_RDDATACAP_BYP(1) |
-				CAD_QSPI_RDDATACAP_DELAY(data_cap_delay));
-
 	} while (data_cap_delay < 0x10);
 
-	if (first_pass > 0) {
-		int diff = first_pass - last_pass;
+	/* 6. Calculate the midpoint of the passing window */
+	if (first_pass >= 0 && last_pass >= 0) {
+		int diff = last_pass - first_pass;
 
-		data_cap_delay = first_pass + diff / 2;
+		data_cap_delay = first_pass + (diff / 2);
+	} else {
+		data_cap_delay = 0;
 	}
 
+	/* Apply final delay */
 	mmio_write_32(CAD_QSPI_OFFSET + CAD_QSPI_RDDATACAP,
 			CAD_QSPI_RDDATACAP_BYP(1) |
 			CAD_QSPI_RDDATACAP_DELAY(data_cap_delay));
-	status = cad_qspi_stig_read_cmd(CAD_QSPI_STIG_OPCODE_RDID, 0, 3, &rdid);
 
-	if (status != 0)
-		return;
+	status = cad_qspi_stig_read_cmd(CAD_QSPI_STIG_OPCODE_RDID, 0, 3, &rdid);
 }
 
 int cad_qspi_int_disable(uint32_t mask)
@@ -525,7 +527,6 @@ int cad_qspi_init(uint32_t desired_clk_freq, uint32_t clk_phase,
 		return -1;
 	}
 
-
 	status = cad_qspi_timing_config(clk_phase, clk_pol, csda, csdads,
 					cseot, cssot, rddatacap);
 
@@ -550,8 +551,9 @@ int cad_qspi_init(uint32_t desired_clk_freq, uint32_t clk_phase,
 		return status;
 	}
 
+	/* Fixed: Units consistently in MHz */
 	qspi_desired_clk_freq = 100;
-	cad_qspi_calibration(qspi_desired_clk_freq, 50000000);
+	cad_qspi_calibration(qspi_desired_clk_freq, 50);
 
 	status = cad_qspi_stig_read_cmd(CAD_QSPI_STIG_OPCODE_RDID, 0, 3,
 					&rdid);
