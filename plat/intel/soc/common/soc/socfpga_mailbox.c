@@ -1138,6 +1138,7 @@ static int mailbox_poll_response_v3(uint8_t client_id, uint8_t job_id,
 	unsigned int timeout = 40U;
 	unsigned int sdm_loop = 255U;
 	bool is_cmd_desc_fill = false;
+	bool resp_from_async = false;
 	uint8_t di = 0U;
 	sdm_response_t *resp_desc = NULL;
 	sdm_command_t *cmd_desc = NULL;
@@ -1152,6 +1153,40 @@ static int mailbox_poll_response_v3(uint8_t client_id, uint8_t job_id,
 		} while (--timeout != 0U);
 
 		if (timeout == 0U) {
+			/*
+			 * Doorbell wait timed out.  The Linux async IRQ path
+			 * (stratix10-svc driver) may have already cleared the
+			 * doorbell and moved the SDM response into resp_queue
+			 * via mailbox_response_poll_on_intr_v3().  Check
+			 * resp_queue before declaring a true timeout.
+			 */
+			if (!is_cmd_desc_fill) {
+				if (mailbox_fill_cmd_desc(client_id, job_id,
+							  resp) == MBOX_RET_OK) {
+					cmd_desc = mailbox_get_cmd_desc(client_id, job_id);
+					is_cmd_desc_fill = true;
+				}
+			}
+
+			if (is_cmd_desc_fill) {
+				(void)mailbox_response_handler_fsm();
+				resp_desc = mailbox_get_resp_desc(client_id,
+								  job_id, &di);
+				if (resp_desc != NULL) {
+					/* Response found via async path; data may be
+					 * in resp_desc->resp_data instead of caller's
+					 * buffer because cmd_desc wasn't registered
+					 * when the async IRQ path ran
+					 * mailbox_response_parser().
+					 */
+					resp_from_async = true;
+					goto found_response;
+				}
+				/* Genuine timeout — free leaked cmd descriptor */
+				mailbox_free_cmd_desc(cmd_desc);
+				cmd_desc = NULL;
+			}
+
 			INFO("%s: Timed out waiting for SDM intr\n", __func__);
 			break;
 		}
@@ -1189,6 +1224,7 @@ static int mailbox_poll_response_v3(uint8_t client_id, uint8_t job_id,
 		/* Check the response queue with the given client ID and job ID */
 		resp_desc = mailbox_get_resp_desc(client_id, job_id, &di);
 		if (resp_desc != NULL) {
+found_response:
 			VERBOSE("%s: Resp received for cid %d, jid %d\n",
 				__func__, resp_desc->client_id, resp_desc->job_id);
 
@@ -1197,6 +1233,25 @@ static int mailbox_poll_response_v3(uint8_t client_id, uint8_t job_id,
 			/* Update the return response length */
 			if (resp_len != NULL) {
 				*resp_len = resp_desc->rcvd_resp_len;
+			}
+
+			/*
+			 * If the async IRQ path ran mailbox_response_parser()
+			 * before cmd_desc was registered, it had no cb_args to
+			 * write into so the payload landed in resp_desc->resp_data
+			 * instead of the caller's buffer.  Copy it now.
+			 */
+			if (resp_from_async && (resp != NULL) &&
+			    (resp_desc->rcvd_resp_len > 0U)) {
+				uint16_t copy_len = resp_desc->rcvd_resp_len;
+
+				if (copy_len > MBOX_SVC_MAX_RESP_DATA_SIZE) {
+					copy_len = MBOX_SVC_MAX_RESP_DATA_SIZE;
+				}
+				memcpy_s((uint8_t *)resp,
+					 copy_len * MBOX_WORD_BYTE,
+					 (uint8_t *)resp_desc->resp_data,
+					 copy_len * MBOX_WORD_BYTE);
 			}
 
 			/* Free the response and command descriptor */
