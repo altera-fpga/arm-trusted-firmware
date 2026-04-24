@@ -294,7 +294,7 @@ int cad_qspi_n25q_wait_for_program_and_erase(int program_only)
 		}
 
 		if ((program_only && CAD_QSPI_STIG_FLAGSR_PROGRAMREADY(flag_sr)) ||
-		    (!program_only && CAD_QSPI_STIG_FLAGSR_ERASEREADY(flag_sr)))
+		    (!program_only && CAD_QSPI_STIG_FLAGSR_ERASEREADY(flag_sr))) {
 			break;
 		}
 		count++;
