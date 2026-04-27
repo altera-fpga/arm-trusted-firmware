@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2019-2023, ARM Limited and Contributors. All rights reserved.
  * Copyright (c) 2019-2023, Intel Corporation. All rights reserved.
- * Copyright (c) 2024-2025, Altera Corporation. All rights reserved.
+ * Copyright (c) 2024-2026, Altera Corporation. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -370,7 +370,22 @@ static int is_out_of_sec_range(uint64_t reg_addr)
 	return 0;
 #endif
 
-#if PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX3
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
+	if (is_agilex5_A5F4() == true) {
+		switch (reg_addr) {
+		/* TSN stream control registers only accessible on Agilex5 B0 */
+		case SOCFPGA_SYSMGR(TSN_TBU_STREAM_CTRL_REG_3_TSN0):
+		case SOCFPGA_SYSMGR(TSN_TBU_STREAM_CTRL_REG_3_TSN1):
+		case SOCFPGA_SYSMGR(TSN_TBU_STREAM_CTRL_REG_3_TSN2):
+			return 0;
+
+		default:
+			break;
+		}
+	}
+#endif
+
+#if PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX5
 	switch (reg_addr) {
 	case(0xF8011100):	/* ECCCTRL1 */
 	case(0xF8011104):	/* ECCCTRL2 */
@@ -536,7 +551,14 @@ static uint32_t intel_rsu_get_device_info(uint32_t *respbuf,
 					  unsigned int respbuf_sz)
 {
 	if (mailbox_rsu_get_device_info((uint32_t *)respbuf, respbuf_sz) < 0) {
+#if PLATFORM_MODEL == PLAT_SOCFPGA_N5X
+		/* N5X SDM firmware doesn't support device info,
+		 * returns UNKNOWN_COMMAND (3).
+		 */
+		return SMC_UNK;
+#else
 		return INTEL_SIP_SMC_RSU_ERROR;
+#endif
 	}
 
 	return INTEL_SIP_SMC_STATUS_OK;
@@ -1420,7 +1442,7 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 		}
 
 		/* Make sure we have valid command payload length and buffer */
-		if (cmd_payload_len) {
+		if (cmd_payload_len != 0U) {
 			cmd_payload_addr = (uint32_t *)x3;
 			if (cmd_payload_addr == NULL) {
 				ERROR("MBOX: 0x%x: Command payload address is NULL\n",
@@ -1431,7 +1453,7 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 		}
 
 		/* Make sure we have valid response payload length and buffer */
-		if (resp_payload_len) {
+		if (resp_payload_len != 0U) {
 			resp_payload_addr = (uint32_t *)x5;
 			if (resp_payload_addr == NULL) {
 				ERROR("MBOX: 0x%x: Response payload address is NULL\n",
@@ -1456,11 +1478,8 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 
 	case ALTERA_SIP_SMC_ASYNC_FCS_RANDOM_NUMBER_EXT:
 	{
-		uint32_t session_id = (uint32_t)x2;
-		uint32_t context_id = (uint32_t)x3;
 		uint64_t ret_random_addr = (uint64_t)x4;
 		uint32_t random_len = (uint32_t)SMC_GET_GP(handle, CTX_GPREG_X5);
-		uint32_t crypto_header = 0U;
 
 		if ((random_len > (FCS_RANDOM_EXT_MAX_WORD_SIZE * MBOX_WORD_BYTE)) ||
 		    (random_len == 0U) ||
@@ -1470,16 +1489,25 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 			SMC_RET1(handle, status);
 		}
 
+#if PLATFORM_MODEL != PLAT_SOCFPGA_N5X
+		uint32_t session_id = (uint32_t)x2;
+		uint32_t context_id = (uint32_t)x3;
+		uint32_t crypto_header = 0U;
 		crypto_header = ((FCS_CS_FIELD_FLAG_INIT | FCS_CS_FIELD_FLAG_FINALIZE) <<
 				  FCS_CS_FIELD_FLAG_OFFSET);
 		fcs_rng_payload payload = {session_id, context_id,
 					   crypto_header, random_len};
+#endif
 
 		status = mailbox_send_cmd_async_v3(GET_CLIENT_ID(x1),
 						   GET_JOB_ID(x1),
 						   MBOX_FCS_RANDOM_GEN,
+#if PLATFORM_MODEL != PLAT_SOCFPGA_N5X
 						   (uint32_t *)&payload,
 						   sizeof(payload) / MBOX_WORD_BYTE,
+#else
+						   NULL, 0U,
+#endif
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   (uint32_t *)ret_random_addr,
