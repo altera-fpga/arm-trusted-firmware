@@ -9,6 +9,7 @@
 #ifndef CDN_MMC_H
 #define CDN_MMC_H
 
+#include <platform_def.h>
 #include <drivers/cadence/cdns_combo_phy.h>
 #include <drivers/mmc.h>
 
