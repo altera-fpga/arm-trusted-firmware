@@ -371,7 +371,7 @@ typedef struct sdm_command {
 	uint32_t flags;
 	sdm_command_callback cb;
 	uint32_t *cb_args;
-	uint8_t cb_args_len;
+	uint32_t cb_args_len;
 } sdm_command_t;
 
 /* Get the transcation ID from client ID and job ID. */
