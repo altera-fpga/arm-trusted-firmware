@@ -2874,6 +2874,14 @@ int intel_fcs_hkdf_request(uint32_t smc_fid, uint32_t trans_id,
 		return INTEL_SIP_SMC_STATUS_REJECTED;
 	}
 
+	/* Reject untrusted output key object size before any payload copy */
+	if ((op_key_size == 0U) ||
+	    (op_key_size > FCS_HKDF_KEY_OBJ_MAX_SIZE) ||
+	    ((op_key_size % sizeof(uint32_t)) != 0U)) {
+		ERROR("MBOX: %s: invalid op_key_size %u\n", __func__, op_key_size);
+		return INTEL_SIP_SMC_STATUS_REJECTED;
+	}
+
 	/* Prepare command payload */
 
 	/* Session ID */
@@ -2909,9 +2917,15 @@ int intel_fcs_hkdf_request(uint32_t smc_fid, uint32_t trans_id,
 	/* Pointer to size of output key object */
 	inputdata = inputdata + FCS_HKDF_KEY_DATA_SIZE;
 
+	/* Confirm payload has room for the output key object */
+	if ((op_key_size / sizeof(uint32_t)) > (FCS_HKDF_REQUEST_DATA_SIZE - i)) {
+		ERROR("MBOX: %s: op_key_size %u too large\n", __func__, op_key_size);
+		return INTEL_SIP_SMC_STATUS_REJECTED;
+	}
+
 	/* Output Key object */
-	memcpy_s(&payload[i], op_key_size / sizeof(uint32_t), (void *)inputdata,
-		op_key_size / sizeof(uint32_t));
+	memcpy_s(&payload[i], FCS_HKDF_REQUEST_DATA_SIZE - i,
+		 (void *)inputdata, op_key_size / sizeof(uint32_t));
 
 	i += op_key_size / sizeof(uint32_t);
 

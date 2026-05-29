@@ -71,13 +71,19 @@ int socfpga_vab_init(unsigned int image_id)
 int socfpga_vab_authentication(void **p_image, size_t *p_size)
 {
 	int retry_count = 20;
-	uint8_t hash384[FCS_SHA384_WORD_SIZE];
+	uint8_t hash384[FCS_SHA384_BYTE_SIZE];
 	uint64_t img_addr, mbox_data_addr;
-	uint32_t img_sz, mbox_data_sz;
-	uint8_t *cert_hash_ptr, *mbox_relocate_data_addr;
+	size_t img_sz, mbox_data_sz;
+	uint8_t *cert_hash_ptr;
+	uint32_t *mbox_relocate_data_addr;
 	uint32_t resp = 0, resp_len = 1;
 	int ret = 0;
-	uint8_t u8_buf_static[MBOX_DATA_MAX_LEN];
+	/*
+	 * socfpga_memcpy_s() and the mailbox operate on 32-bit words, so size the
+	 * relocation buffer in words to match the maximum mailbox payload
+	 * (MBOX_DATA_MAX_LEN words).
+	 */
+	uint32_t u8_buf_static[MBOX_DATA_MAX_LEN];
 
 	mbox_relocate_data_addr = u8_buf_static;
 
@@ -90,7 +96,7 @@ int socfpga_vab_authentication(void **p_image, size_t *p_size)
 	}
 
 	if (!IS_BYTE_ALIGNED(img_sz, sizeof(uint32_t))) {
-		ERROR("Image size (%d bytes) not aliged to 4 bytes!\n", img_sz);
+		ERROR("Image size (%zu bytes) not aliged to 4 bytes!\n", img_sz);
 		return -EIMGERR;
 	}
 
@@ -103,29 +109,49 @@ int socfpga_vab_authentication(void **p_image, size_t *p_size)
 	 * Compare the SHA384 found in certificate against the SHA384
 	 * calculated from image
 	 */
-	if (memcmp(hash384, cert_hash_ptr, FCS_SHA384_WORD_SIZE)) {
+	if (memcmp(hash384, cert_hash_ptr, FCS_SHA384_BYTE_SIZE)) {
 		ERROR("SHA384 does not match!\n");
 		return -EKEYREJECTED;
 	}
 
 	mbox_data_addr = img_addr + img_sz - sizeof(uint32_t);
-	/* Size in word (32bits) */
-	size_t payload = *p_size - img_sz;
 
+	/* Validate the payload size before subtracting to avoid underflow */
 	if (*p_size < img_sz) {
 		ERROR("Invalid VAB payload size\n");
 		return -EINVAL;
 	}
 
+	/* Size in word (32bits) */
+	size_t payload = *p_size - img_sz;
+
 	mbox_data_sz = BYTE_ALIGN(payload, sizeof(uint32_t)) >> 2;
 
+	/*
+	 * mbox_data_sz is a 32-bit word count. Reject payloads larger than the
+	 * relocation buffer / maximum mailbox payload (MBOX_DATA_MAX_LEN words)
+	 * to prevent an EL3 stack overflow in socfpga_memcpy_s().
+	 */
+	if (mbox_data_sz > MBOX_DATA_MAX_LEN) {
+		ERROR("VAB payload size (%zu words) exceeds max (%d words)\n",
+		      mbox_data_sz, MBOX_DATA_MAX_LEN);
+		return -EINVAL;
+	}
 
-	VERBOSE("mbox_data_addr = %lx    mbox_data_sz = %d\n", mbox_data_addr, mbox_data_sz);
+	VERBOSE("mbox_data_addr = %lx    mbox_data_sz = %zu\n", mbox_data_addr, mbox_data_sz);
 
-	memcpy_s(mbox_relocate_data_addr, (mbox_data_sz * sizeof(uint32_t)) / MBOX_WORD_BYTE,
-		(uint8_t *)mbox_data_addr, (mbox_data_sz * sizeof(uint32_t)) / MBOX_WORD_BYTE);
+	/*
+	 * dsize is the true buffer capacity in words; ssize is the actual word
+	 * count. socfpga_memcpy_s() copies word-wise and rejects ssize > dsize.
+	 */
+	ret = memcpy_s(mbox_relocate_data_addr, MBOX_DATA_MAX_LEN,
+		       (void *)mbox_data_addr, mbox_data_sz);
+	if (ret != 0) {
+		ERROR("Failed to relocate VAB certificate (ret %d)\n", ret);
+		return -EAUTH;
+	}
 
-	*((unsigned int *)mbox_relocate_data_addr) = 0;
+	mbox_relocate_data_addr[0] = 0U;
 
 	do {
 		/* Invoke SMC call to ATF to send the VAB certificate to SDM */
@@ -176,7 +202,8 @@ int socfpga_vab_authentication(void **p_image, size_t *p_size)
 		}
 	}
 
-	NOTICE("%s 0x%lx (%d bytes)\n", "Image Authentication passed at address", img_addr, img_sz);
+	NOTICE("Image Authentication passed at address 0x%lx (%zu bytes)\n",
+	       img_addr, img_sz);
 	return ret;
 }
 
