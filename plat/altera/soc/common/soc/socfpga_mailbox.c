@@ -832,7 +832,7 @@ int mailbox_safe_inject_seu_err(uint32_t *arg, unsigned int len)
 
 #if SIP_SVC_V3
 static int mailbox_fill_cmd_desc(uint8_t client_id, uint8_t job_id,
-				 uint32_t *resp_buff)
+				 uint32_t *resp_buff, uint32_t resp_buff_len)
 {
 	sdm_command_t *cmd_desc = NULL;
 
@@ -847,7 +847,7 @@ static int mailbox_fill_cmd_desc(uint8_t client_id, uint8_t job_id,
 	cmd_desc->job_id = job_id;
 	cmd_desc->cb = NULL;
 	cmd_desc->cb_args = resp_buff;
-	cmd_desc->cb_args_len = 0U;
+	cmd_desc->cb_args_len = resp_buff_len;
 
 	return MBOX_RET_OK;
 }
@@ -1041,7 +1041,8 @@ static int mailbox_read_response_v3(uint8_t client_id, uint8_t *job_id,
 		mmio_write_32(MBOX_OFFSET + MBOX_DOORBELL_FROM_SDM, 0U);
 
 	/* Fill the command descriptor index and get the same */
-	status = mailbox_fill_cmd_desc(client_id, async_v1_job_id, resp);
+	status = mailbox_fill_cmd_desc(client_id, async_v1_job_id, resp,
+				       (resp_len != NULL) ? *resp_len : 0U);
 	if (status != MBOX_RET_OK) {
 		return status;
 	}
@@ -1052,7 +1053,9 @@ static int mailbox_read_response_v3(uint8_t client_id, uint8_t *job_id,
 	status = mailbox_response_handler_fsm();
 	if (status != MBOX_RET_OK) {
 		mailbox_free_cmd_desc(cmd_desc);
-		*resp_len = 0U;
+		if (resp_len != NULL) {
+			*resp_len = 0U;
+		}
 		return status;
 	}
 
@@ -1060,13 +1063,17 @@ static int mailbox_read_response_v3(uint8_t client_id, uint8_t *job_id,
 	resp_desc = mailbox_get_resp_desc_cid(client_id, &di);
 	if (resp_desc == NULL) {
 		mailbox_free_cmd_desc(cmd_desc);
-		*resp_len = 0U;
+		if (resp_len != NULL) {
+			*resp_len = 0U;
+		}
 		return MBOX_NO_RESPONSE;
 	}
 
 	/* Update the received mailbox response length, job ID and header */
 	*job_id = resp_desc->job_id;
-	*resp_len = resp_desc->rcvd_resp_len;
+	if (resp_len != NULL) {
+		*resp_len = resp_desc->rcvd_resp_len;
+	}
 	if (header != NULL) {
 		*header = resp_desc->header;
 	}
@@ -1162,7 +1169,10 @@ static int mailbox_poll_response_v3(uint8_t client_id, uint8_t job_id,
 			 */
 			if (!is_cmd_desc_fill) {
 				if (mailbox_fill_cmd_desc(client_id, job_id,
-							  resp) == MBOX_RET_OK) {
+							  resp,
+							  (resp_len != NULL) ?
+								*resp_len : 0U)
+								== MBOX_RET_OK) {
 					cmd_desc = mailbox_get_cmd_desc(client_id, job_id);
 					is_cmd_desc_fill = true;
 				}
@@ -1209,7 +1219,9 @@ static int mailbox_poll_response_v3(uint8_t client_id, uint8_t job_id,
 
 		/* Fill the command descriptor index and get the same. */
 		if (!is_cmd_desc_fill) {
-			if (mailbox_fill_cmd_desc(client_id, job_id, resp) !=
+			if (mailbox_fill_cmd_desc(client_id, job_id, resp,
+						  (resp_len != NULL) ?
+							*resp_len : 0U) !=
 				MBOX_RET_OK) {
 				return MBOX_BUFFER_FULL;
 			}
@@ -1369,7 +1381,24 @@ static void mailbox_response_parser(void)
 						mbox_svc.resp_queue[mbox_svc.curr_di].job_id);
 		if (cmd_desc != NULL && cmd_desc->cb_args != NULL) {
 			read_buff = cmd_desc->cb_args;
-			read_max_len = mbox_resp_len;
+			/*
+			 * Bound the copy length by the caller-declared cb_args_len
+			 * (in words) to prevent out-of-bounds writes into the
+			 * caller's buffer.  cb_args_len == 0 is treated as
+			 * "no caller-declared bound" and falls back to mbox_resp_len
+			 * for legacy paths that did not propagate a length.
+			 */
+			if (cmd_desc->cb_args_len > 0U) {
+				if (cmd_desc->cb_args_len <
+				    (uint32_t)mbox_resp_len) {
+					read_max_len =
+						(uint16_t)cmd_desc->cb_args_len;
+				} else {
+					read_max_len = mbox_resp_len;
+				}
+			} else {
+				read_max_len = mbox_resp_len;
+			}
 		} else {
 			read_buff = (uint32_t *)mbox_svc.resp_queue[mbox_svc.curr_di].resp_data;
 			read_max_len = MBOX_SVC_MAX_RESP_DATA_SIZE;

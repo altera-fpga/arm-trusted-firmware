@@ -32,6 +32,11 @@ static uint32_t intel_v2_mbox_send_cmd(uint32_t req_header,
 		return INTEL_SIP_SMC_STATUS_REJECTED;
 	}
 
+	if (!is_address_in_ddr_range((uintptr_t)data, data_size)) {
+		ERROR("MBOX: %s: data buffer not in the DDR range\n", __func__);
+		return INTEL_SIP_SMC_STATUS_REJECTED;
+	}
+
 	/* Make sure client id align in SMC SiP V2 header and mailbox header */
 	value = (req_header >> INTEL_SIP_SMC_HEADER_CID_OFFSET) &
 				INTEL_SIP_SMC_HEADER_CID_MASK;
@@ -76,6 +81,21 @@ static uint32_t intel_v2_mbox_poll_resp(uint64_t req_header,
 	}
 
 	if (!is_size_4_bytes_aligned(*data_size)) {
+		return INTEL_SIP_SMC_STATUS_REJECTED;
+	}
+
+	/*
+	 * The caller-supplied buffer must be large enough to hold at least
+	 * the mailbox header word; otherwise the resp_len computation below
+	 * would underflow and the mailbox could be told the buffer can hold
+	 * 0xFFFFFFFF words.
+	 */
+	if (*data_size < MBOX_WORD_BYTE) {
+		return INTEL_SIP_SMC_STATUS_REJECTED;
+	}
+
+	if (!is_address_in_ddr_range((uintptr_t)data, *data_size)) {
+		ERROR("MBOX: %s: data buffer not in the DDR range\n", __func__);
 		return INTEL_SIP_SMC_STATUS_REJECTED;
 	}
 
