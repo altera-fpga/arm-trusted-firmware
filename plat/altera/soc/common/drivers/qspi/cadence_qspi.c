@@ -15,6 +15,7 @@
 
 #include "cadence_qspi.h"
 #include "socfpga_plat_def.h"
+#include "socfpga_system_manager.h"
 #include "wdt/watchdog.h"
 
 #define LESS(a, b)   (((a) < (b)) ? (a) : (b))
@@ -437,15 +438,23 @@ void cad_qspi_calibration(uint32_t dev_clk, uint32_t qspi_clk_mhz)
 	/* 3. Set divider to the intended frequency.
 	 * Rounding: (qspi_clk_mhz + (dev_clk / 2)) / dev_clk
 	 */
-	div_actual = (qspi_clk_mhz + (dev_clk / 2)) / dev_clk;
-
-	/* Safety check: ensure we don't overclock or use invalid bits */
-	if (div_actual < 2) {
-		div_actual = 2;
-	}
-	div_bits = (((div_actual + 1) / 2) - 1);
-	if (div_bits > 0xf) {
+	if (qspi_clk_mhz == 0U) {
+		/*
+		 * Real ref clock unknown (e.g. SDM did not report it). Fall
+		 * back to the slowest SCLK (ref/32) so we never overclock.
+		 */
 		div_bits = 0xf;
+	} else {
+		div_actual = (qspi_clk_mhz + (dev_clk / 2)) / dev_clk;
+
+		/* Safety check: ensure we don't overclock or use invalid bits */
+		if (div_actual < 2) {
+			div_actual = 2;
+		}
+		div_bits = (((div_actual + 1) / 2) - 1);
+		if ((div_bits == 0U) || (div_bits > 0xfU)) {
+			div_bits = 0xf;
+		}
 	}
 
 	status = cad_qspi_set_baudrate_div(div_bits);
@@ -517,6 +526,7 @@ int cad_qspi_init(uint32_t desired_clk_freq, uint32_t clk_phase,
 {
 	int status = 0;
 	uint32_t qspi_desired_clk_freq;
+	uint32_t qspi_ref_clk_mhz;
 	uint32_t rdid = 0;
 	uint32_t cap_code;
 
@@ -551,9 +561,20 @@ int cad_qspi_init(uint32_t desired_clk_freq, uint32_t clk_phase,
 		return status;
 	}
 
-	/* Fixed: Units consistently in MHz */
+	/*
+	 * The QSPI reference clock is supplied by the SDM. It was queried
+	 * earlier by mailbox_set_qspi_direct(), which stored it (in kHz) in
+	 * BOOT_SCRATCH_COLD_0[27:0]. Read it back and convert to MHz so the
+	 * calibration baud-rate divider is derived from the real ref clock
+	 * instead of a hard-coded placeholder (the placeholder produced an
+	 * over-fast SCLK on platforms whose ref clock is high, e.g. Agilex3
+	 * LTH, corrupting RDID and yielding "Invalid CapacityID").
+	 */
 	qspi_desired_clk_freq = 100;
-	cad_qspi_calibration(qspi_desired_clk_freq, 50);
+	qspi_ref_clk_mhz = (mmio_read_32(SOCFPGA_SYSMGR(BOOT_SCRATCH_COLD_0))
+			    & SYSMGR_QSPI_REFCLK_MASK) / 1000U;
+
+	cad_qspi_calibration(qspi_desired_clk_freq, qspi_ref_clk_mhz);
 
 	status = cad_qspi_stig_read_cmd(CAD_QSPI_STIG_OPCODE_RDID, 0, 3,
 					&rdid);
