@@ -918,7 +918,7 @@ int intel_fcs_get_attestation_cert(uint32_t smc_fid, uint32_t trans_id,
 					MBOX_CMD_FLAG_CASUAL,
 					fcs_get_attest_cert_cb,
 					(uint32_t *)dst_addr,
-					2U) :
+					ret_size) :
 		mailbox_send_cmd(MBOX_JOB_ID, MBOX_GET_ATTESTATION_CERT,
 			(uint32_t *) &cert_request, 1U, CMD_CASUAL,
 			(uint32_t *) dst_addr, &ret_size);
@@ -1294,7 +1294,7 @@ int intel_fcs_get_digest_update_finalize(uint32_t smc_fid, uint32_t trans_id,
 						   MBOX_CMD_FLAG_CASUAL,
 						   fcs_cs_get_digest_cb,
 						   (uint32_t *)dst_addr,
-						   2U) :
+						   resp_len) :
 			mailbox_send_cmd(MBOX_JOB_ID, MBOX_FCS_GET_DIGEST_REQ,
 				payload, i, CMD_CASUAL,
 				(uint32_t *) dst_addr, &resp_len);
@@ -1549,7 +1549,7 @@ int intel_fcs_mac_verify_update_finalize(uint32_t smc_fid, uint32_t trans_id,
 						   MBOX_CMD_FLAG_CASUAL,
 						   fcs_cs_mac_verify_cb,
 						   (uint32_t *)dst_addr,
-						   2U) :
+						   resp_len) :
 			mailbox_send_cmd(MBOX_JOB_ID, MBOX_FCS_MAC_VERIFY_REQ,
 				payload, i, CMD_CASUAL,
 				(uint32_t *) dst_addr, &resp_len);
@@ -1796,7 +1796,7 @@ int intel_fcs_ecdsa_hash_sign_finalize(uint32_t smc_fid, uint32_t trans_id,
 						   MBOX_CMD_FLAG_CASUAL,
 						   fcs_cs_hash_sign_req_cb,
 						   (uint32_t *)dst_addr,
-						   2U) :
+						   resp_len) :
 			mailbox_send_cmd(MBOX_JOB_ID, MBOX_FCS_ECDSA_HASH_SIGN_REQ,
 			payload, i, CMD_CASUAL, (uint32_t *) dst_addr,
 			&resp_len);
@@ -1908,7 +1908,7 @@ int intel_fcs_ecdsa_hash_sig_verify_finalize(uint32_t smc_fid, uint32_t trans_id
 					MBOX_CMD_FLAG_CASUAL,
 					fcs_cs_hash_sig_verify_req_cb,
 					(uint32_t *)dst_addr,
-					2U) :
+					resp_len) :
 
 		mailbox_send_cmd(MBOX_JOB_ID, MBOX_FCS_ECDSA_HASH_SIG_VERIFY,
 			payload, i, CMD_CASUAL, (uint32_t *) dst_addr,
@@ -2030,7 +2030,7 @@ int intel_fcs_ecdsa_sha2_data_sign_update_finalize(uint32_t smc_fid, uint32_t tr
 						MBOX_CMD_FLAG_CASUAL,
 						fcs_cs_data_sign_req_cb,
 						(uint32_t *)dst_addr,
-						2U) :
+						resp_len) :
 			mailbox_send_cmd(MBOX_JOB_ID,
 			MBOX_FCS_ECDSA_SHA2_DATA_SIGN_REQ, payload,
 			i, CMD_CASUAL, (uint32_t *) dst_addr,
@@ -2281,7 +2281,7 @@ int intel_fcs_ecdsa_sha2_data_sig_verify_update_finalize(uint32_t smc_fid, uint3
 						MBOX_CMD_FLAG_CASUAL,
 						fcs_cs_data_sig_verify_req_cb,
 						(uint32_t *)dst_addr,
-						2U) :
+						resp_len) :
 			mailbox_send_cmd(MBOX_JOB_ID,
 			MBOX_FCS_ECDSA_SHA2_DATA_SIGN_VERIFY, payload, i,
 			CMD_CASUAL, (uint32_t *) dst_addr, &resp_len);
@@ -2500,7 +2500,7 @@ int intel_fcs_ecdsa_get_pubkey_finalize(uint32_t smc_fid, uint32_t trans_id,
 						MBOX_CMD_FLAG_CASUAL,
 						fcs_cs_get_public_key_cb,
 						(uint32_t *)dst_addr,
-						2U) :
+						ret_size) :
 			mailbox_send_cmd(MBOX_JOB_ID,
 					 MBOX_FCS_ECDSA_GET_PUBKEY,
 			payload, i, CMD_CASUAL,
@@ -2606,7 +2606,7 @@ int intel_fcs_ecdh_request_finalize(uint32_t smc_fid, uint32_t trans_id,
 						  MBOX_CMD_FLAG_CASUAL,
 						  fcs_cs_ecdh_request_cb,
 						  (uint32_t *)dst_addr,
-						  2U) :
+						  resp_len) :
 			mailbox_send_cmd(MBOX_JOB_ID, MBOX_FCS_ECDH_REQUEST,
 			payload, i, CMD_CASUAL, (uint32_t *) dst_addr,
 			&resp_len);
