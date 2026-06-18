@@ -1407,13 +1407,27 @@ static void mailbox_response_parser(void)
 		rin = mmio_read_32(MBOX_OFFSET + MBOX_RIN);
 		rout = mmio_read_32(MBOX_OFFSET + MBOX_ROUT);
 
-		while ((read_len < mbox_resp_len) && (rin != rout) && (read_len < read_max_len)) {
+		while ((read_len < mbox_resp_len) && (rin != rout)) {
+			uint32_t resp_word;
+
 			timeout = 10000U;
 
-			/* Copy the response data to the buffer */
-			read_buff[read_len++] = mmio_read_32(MBOX_ENTRY_TO_ADDR(RESP, (rout)++));
+			/* Drain the next response word from the FIFO. */
+			resp_word = mmio_read_32(MBOX_ENTRY_TO_ADDR(RESP, (rout)++));
 
-			VERBOSE("MBOX: 0x%x\n", read_buff[read_len - 1]);
+			/*
+			 * Only store the word into the caller's buffer while
+			 * within the caller-declared bound (read_max_len) to
+			 * prevent out-of-bounds writes.  Words beyond the bound
+			 * are still drained from the FIFO and discarded so the
+			 * mailbox stays in sync and the transaction completes,
+			 * instead of leaving stale words stuck in the FIFO.
+			 */
+			if (read_len < read_max_len) {
+				read_buff[read_len] = resp_word;
+				VERBOSE("MBOX: 0x%x\n", read_buff[read_len]);
+			}
+			read_len++;
 
 			/* Update the read out buffer index */
 			rout %= MBOX_RESP_BUFFER_SIZE;
@@ -1445,8 +1459,15 @@ static void mailbox_response_parser(void)
 			}
 		}
 
-		/* Check if we have received all the arguments */
-		mbox_svc.resp_queue[mbox_svc.curr_di].rcvd_resp_len = read_len;
+		/*
+		 * Report only the number of words actually stored into the
+		 * caller's buffer (read_len is the full drained count, which
+		 * may exceed read_max_len when the caller under-declared its
+		 * buffer).  This keeps downstream flush/return lengths within
+		 * the caller buffer.
+		 */
+		mbox_svc.resp_queue[mbox_svc.curr_di].rcvd_resp_len =
+				(read_len < read_max_len) ? read_len : read_max_len;
 		if (mbox_resp_len == read_len) {
 			uint8_t transaction_id =
 					((mbox_svc.resp_queue[mbox_svc.curr_di].client_id << 4) |
