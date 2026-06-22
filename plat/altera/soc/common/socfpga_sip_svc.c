@@ -385,7 +385,7 @@ static int is_out_of_sec_range(uint64_t reg_addr)
 	}
 #endif
 
-#if PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX5
+#if PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX3
 	switch (reg_addr) {
 	case(0xF8011100):	/* ECCCTRL1 */
 	case(0xF8011104):	/* ECCCTRL2 */
