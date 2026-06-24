@@ -1170,7 +1170,7 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   (uint32_t *)x2,
-						   2);
+						   MBOX_DATA_MAX_LEN);
 
 		SMC_RET1(handle, status);
 	}
@@ -1349,7 +1349,7 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   (uint32_t *)x3,
-						   2);
+						   qspi_nwords);
 
 		SMC_RET1(handle, status);
 	}
@@ -1371,7 +1371,7 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   (uint32_t *)dst_addr,
-						   2);
+						   MBOX_DATA_MAX_LEN);
 
 		SMC_RET1(handle, status);
 	}
@@ -1553,7 +1553,7 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   (uint32_t *)ret_random_addr,
-						   2);
+						   random_len / MBOX_WORD_BYTE);
 		SMC_RET1(handle, status);
 	}
 
@@ -1572,7 +1572,7 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   (uint32_t *)x2,
-						   2);
+						   MBOX_DATA_MAX_LEN);
 		SMC_RET1(handle, status);
 	}
 
@@ -1736,7 +1736,7 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   (uint32_t *)ret_key_addr,
-						   2);
+						   key_len / MBOX_WORD_BYTE);
 		SMC_RET1(handle, status);
 	}
 
@@ -1784,7 +1784,7 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   (uint32_t *)ret_key_addr,
-						   2);
+						   key_len / MBOX_WORD_BYTE);
 		SMC_RET1(handle, status);
 	}
 
@@ -1971,7 +1971,7 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   dst_addr,
-						   2);
+						   MBOX_DATA_MAX_LEN);
 
 		SMC_RET1(handle, status);
 	}
