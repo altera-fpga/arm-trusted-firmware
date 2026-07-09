@@ -966,6 +966,11 @@ uint8_t sip_smc_cmd_cb_rsu_spt(void *resp_desc, void *cmd_desc, uint64_t *ret_ar
 static uintptr_t smc_ret(void *handle, uint64_t *ret_args, uint32_t ret_args_len)
 {
 
+	if (ret_args_len < 0 || ret_args == NULL) {
+		VERBOSE("SVC V3: %s: invalid ret_args len %u ptr %p\n",
+			__func__, ret_args_len, ret_args);
+		SMC_RET1(handle, INTEL_SIP_SMC_STATUS_ERROR);
+	}
 	switch (ret_args_len) {
 	case SMC_RET_ARGS_ONE:
 		VERBOSE("SVC V3: %s: x0 0x%lx\n", __func__, ret_args[0]);
@@ -1043,9 +1048,13 @@ static uintptr_t smc_ret(void *handle, uint64_t *ret_args, uint32_t ret_args_len
 		break;
 
 	default:
-		VERBOSE("SVC V3: %s ret_args_len is wrong, please check %d\n ",
-			__func__, ret_args_len);
-		SMC_RET1(handle, INTEL_SIP_SMC_STATUS_ERROR);
+		if (ret_args_len == 0 && (int64_t)ret_args[0] == MBOX_NO_RESPONSE) {
+			SMC_RET1(handle, INTEL_SIP_SMC_STATUS_NO_RESPONSE);
+		} else {
+			VERBOSE("SVC V3: %s ret_args_len is wrong, please check %d\n ",
+				__func__, ret_args_len);
+			SMC_RET1(handle, INTEL_SIP_SMC_STATUS_ERROR);
+		}
 		break;
 	}
 }
