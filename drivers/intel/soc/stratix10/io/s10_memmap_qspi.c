@@ -5,7 +5,6 @@
  */
 
 #include <assert.h>
-#include <string.h>
 
 #include <platform_def.h>
 
@@ -15,7 +14,26 @@
 #include <drivers/io/io_storage.h>
 #include <lib/utils.h>
 
-#include "qspi/cadence_qspi.h"
+#include <qspi/cadence_qspi.h>
+#include "socfpga_private.h"
+
+/*
+ * Weak default flash I/O for platforms that access QSPI flash through
+ * the Cadence SPI bus controller.  OSPI builds override these with
+ * strong definitions in plat/altera/soc/km/bl2_plat_setup.c.
+ */
+#pragma weak plat_flash_read
+int plat_flash_read(void *buf, unsigned long addr, size_t len)
+{
+	return cad_qspi_read(buf, (uint32_t)addr, (uint32_t)len);
+}
+
+#pragma weak plat_flash_write
+int plat_flash_write(void *addr, const void *buf, size_t len)
+{
+	(void)memcpy(addr, buf, len);
+	return 0;
+}
 
 /* As we need to be able to keep state for seek, only one file can be open
  * at a time. Make this a structure and point to the entity->info. When we
@@ -184,8 +202,7 @@ static int memmap_block_read(io_entity_t *entity, uintptr_t buffer,
 	pos_after = fp->file_pos + length;
 	assert((pos_after >= fp->file_pos) && (pos_after <= fp->size));
 
-	//memcpy((void *)buffer, (void *)(fp->base + fp->file_pos), length);
-	cad_qspi_read((void *)buffer, fp->base + fp->file_pos, length);
+	(void)plat_flash_read((void *)buffer, fp->base + fp->file_pos, length);
 	*length_read = length;
 
 	/* Set file position after read */
@@ -211,7 +228,8 @@ static int memmap_block_write(io_entity_t *entity, const uintptr_t buffer,
 	pos_after = fp->file_pos + length;
 	assert((pos_after >= fp->file_pos) && (pos_after <= fp->size));
 
-	memcpy((void *)(fp->base + fp->file_pos), (void *)buffer, length);
+	(void)plat_flash_write((void *)(fp->base + fp->file_pos),
+			       (const void *)buffer, length);
 
 	*length_written = length;
 

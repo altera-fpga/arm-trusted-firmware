@@ -17,7 +17,7 @@
 #include <qspi/cadence_qspi.h>
 
 /* Mailbox driver*/
-#include <socfpga_mailbox.h>
+#include "mailbox/socfpga_mailbox.h"
 #include <socfpga_private.h>
 #include <socfpga_ros.h>
 

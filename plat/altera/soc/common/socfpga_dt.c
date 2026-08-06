@@ -17,14 +17,13 @@
 #include <drivers/delay_timer.h>
 #include <lib/mmio.h>
 #include <lib/utils.h>
-#include <tools_share/firmware_image_package.h>
 #include <libfdt.h>
 #include <platform_def.h>
+#include <tools_share/firmware_image_package.h>
 
 #include "socfpga_dt.h"
 
-static void *fdt;
-#define DT_DEBUG 1
+static const void *fdt;
 /*******************************************************************************
  * This function checks device tree file with its header.
  * Returns 0 on success and a negative FDT error code on failure.
@@ -36,24 +35,22 @@ int socfpga_dt_open_and_check(uintptr_t dt_addr, char *compatible_str)
 
 	ret = fdt_check_header((void *)dt_addr);
 
-	if (ret == 0) {
-		fdt = (void *)dt_addr;
-	} else {
+	if (ret != 0) {
 		ERROR("SOCFPGA: FDT Header invalid\n");
+		return ret;
 	}
+
+	fdt = (const void *)dt_addr;
 
 	/* As libfdt use void *, we can't avoid this cast */
 	const void *dtb = (void *)dt_addr;
 
-	/* Assert the node offset point to "arm,tb_fw" compatible property */
-	//const char *compatible_str = "arm,AGILEX5";;
+	/* Assert the node offset point to compatible property */
 	node = fdt_node_offset_by_compatible(dtb, -1, compatible_str);
 	if (node < 0) {
 		ERROR("SOCFPGA: Can't find `%s` compatible in dtb\n",
 						compatible_str);
 		return node;
-	} else {
-		NOTICE("SOCFPGA: Node = %d\n", node);
 	}
 
 	NOTICE("SOCFPGA: Successfully open and check FDT\n");
@@ -86,7 +83,6 @@ int socfpga_dt_populate_gicv3_config(uintptr_t dt_addr, gicv3_driver_data_t *pla
 	err = fdt_get_reg_props_by_index(hw_config_dtb, node, 0, &addr, NULL);
 	if (err < 0) {
 		ERROR("SOCFPGA: Failed to read GICD reg property of GIC node\n");
-		return err;
 	} else {
 		plat_driver_data->gicd_base = addr;
 	}

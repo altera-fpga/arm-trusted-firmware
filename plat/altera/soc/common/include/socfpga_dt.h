@@ -18,12 +18,12 @@
  *   callback:	populate() function
  */
 #define SOCFPGA_REGISTER_POPULATOR(config, name, callback)			\
-	__attribute__((used, section(".socfpga_populator")))			\
+	__section(".socfpga_populator") __used			\
 	static const struct socfpga_populator (name##__populator) = {		\
 		.config_type = (#config),					\
 		.info = (#name),						\
 		.populate = (callback)						\
-	};
+	}
 
 /*
  * Populator callback

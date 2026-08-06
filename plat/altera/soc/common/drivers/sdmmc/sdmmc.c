@@ -19,7 +19,7 @@
 #include <lib/utils.h>
 
 #include "sdmmc.h"
-#include "socfpga_mailbox.h"
+#include "mailbox/socfpga_mailbox.h"
 #include "wdt/watchdog.h"
 
 static const struct mmc_ops *ops;

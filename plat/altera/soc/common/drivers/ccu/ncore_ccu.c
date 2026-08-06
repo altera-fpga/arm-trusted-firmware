@@ -12,7 +12,7 @@
 #include <platform_def.h>
 
 #include "ncore_ccu.h"
-#include "socfpga_mailbox.h"
+#include "mailbox/socfpga_mailbox.h"
 #include "socfpga_plat_def.h"
 #include "socfpga_system_manager.h"
 
@@ -29,24 +29,27 @@ uint32_t poll_active_bit(uint32_t dir);
 #define ARRAY_ID_DATA					0x1
 #define CACHE_OPERATION_DONE				BIT(0)
 #define TIMEOUT_200MS					200
+#define FIELD_PREP(_mask, _val)						\
+	({ \
+		((typeof(_mask))(_val) << __bf_shf(_mask)) & (_mask);	\
+	})
 
-
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
 ncore_ccu_reg_t ncore_ccu_modules[] = {
-				{"caiu0@1c000000",             0x1C000000, 0x00001000},
-				{"ncaiu0@1c001000",            0x1C001000, 0x00001000},
-				{"ncaiu1@1c002000",            0x1C002000, 0x00001000},
-				{"ncaiu2@1c003000",            0x1C003000, 0x00001000},
-				{"ncaiu3@1c004000",            0x1C004000, 0x00001000},
-				{"dce0@1c005000",              0x1C005000, 0x00001000},
-				{"dce1@1c006000",              0x1C006000, 0x00001000},
-				{"dmi0@1c007000",              0x1C007000, 0x00001000},
-				{"dmi1@1c008000",              0x1C008000, 0x00001000},
-				{"noc_fw_l4_per@10d21000",     0x10D21000, 0x0000008C},
-				{"noc_fw_l4_sys@10d21100",     0x10D21100, 0x00000098},
-				{"noc_fw_lwsoc2fpga@10d21300", 0x10D21300, 0x00000004},
-				{"noc_fw_soc2fpga@10d21200",   0x10D21200, 0x00000004},
-				{"noc_fw_tcu@10d21400",        0x10D21400, 0x00000004}
+				{"caiu0@1c000000",             0x6000000, 0x00001000},
+				{"ncaiu0@1c001000",            0x6001000, 0x00001000},
+				{"ncaiu1@1c002000",            0x6002000, 0x00001000},
+				{"ncaiu2@1c003000",            0x6003000, 0x00001000},
+				{"ncaiu3@1c004000",            0x6004000, 0x00001000},
+				{"dce0@1c005000",              0x6005000, 0x00001000},
+				{"dce1@1c006000",              0x6006000, 0x00001000},
+				{"dmi0@1c007000",              0x6007000, 0x00001000},
+				{"dmi1@1c008000",              0x6008000, 0x00001000}
+				//fixme {"noc_fw_l4_per@10d21000",     0x10D21000, 0x0000008C},
+				//fixme {"noc_fw_l4_sys@10d21100",     0x10D21100, 0x00000098},
+				//fixme {"noc_fw_lwsoc2fpga@10d21300", 0x10D21300, 0x00000004},
+				//fixme {"noc_fw_soc2fpga@10d21200",   0x10D21200, 0x00000004},
+				//fixme {"noc_fw_tcu@10d21400",        0x10D21400, 0x00000004}
 				};
 
 ncore_ccu_t ccu_caiu0[] = {
@@ -608,7 +611,7 @@ void ncore_enable_ocram_firewall(void)
 			OCRAM_PRIVILEGED_MASK | OCRAM_SECURE_MASK);
 }
 
-#if PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX3
+#if PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX3 && PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX72
 uint32_t init_ncore_ccu(void)
 {
 	uint32_t status;
@@ -652,7 +655,7 @@ void setup_smmu_stream_id(void)
 	mmio_write_32(SOCFPGA_SYSMGR(TSN_TBU_STREAM_CTRL_REG_3_TSN2), ENABLE_STREAMID);
 }
 
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
 /* TODO: Temp added this here*/
 static int poll_idle_status(uint32_t addr, uint32_t mask, uint32_t match, uint32_t delay_ms)
 {

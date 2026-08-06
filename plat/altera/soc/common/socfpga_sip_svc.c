@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2019-2023, ARM Limited and Contributors. All rights reserved.
  * Copyright (c) 2019-2023, Intel Corporation. All rights reserved.
- * Copyright (c) 2024-2026, Altera Corporation. All rights reserved.
+ * Copyright (c) 2024-2025, Altera Corporation. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -15,7 +15,7 @@
 
 #include "lib/utils/alignment_utils.h"
 #include "socfpga_fcs.h"
-#include "socfpga_mailbox.h"
+#include "mailbox/socfpga_mailbox.h"
 #include "socfpga_plat_def.h"
 #include "socfpga_private.h"
 #include "socfpga_reset_manager.h"
@@ -31,7 +31,7 @@ static int read_block, max_blocks;
 static uint32_t send_id, rcv_id;
 static uint32_t bytes_per_block, blocks_submitted;
 static bool bridge_disable;
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
 static uint32_t g_remapper_bypass;
 #endif
 
@@ -76,8 +76,8 @@ static int intel_fpga_sdm_write_buffer(struct fpga_config_info *buffer)
 		}
 
 		buffer->size_written += args[2];
-		mailbox_send_cmd_async(&send_id, MBOX_RECONFIG_DATA, args,
-					3U, CMD_INDIRECT);
+		(void)mailbox_send_cmd_async(&send_id, MBOX_RECONFIG_DATA, args,
+				       3U, CMD_INDIRECT);
 
 		buffer->subblocks_sent++;
 		max_blocks--;
@@ -171,7 +171,7 @@ static int intel_fpga_config_completed_write(uint32_t *completed_addr,
 	while (*count < 3) {
 
 		status = mailbox_read_response(job_id,
-				resp, &resp_len);
+					       resp, &resp_len);
 
 		if (status < 0) {
 			break;
@@ -228,7 +228,7 @@ static int intel_fpga_config_start(uint32_t flag)
 	unsigned int size = 0;
 	unsigned int resp_len = ARRAY_SIZE(response);
 
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
 	/*
 	 * To trigger isolation
 	 * FPGA configuration complete signal should be de-asserted
@@ -253,17 +253,19 @@ static int intel_fpga_config_start(uint32_t flag)
 		request_type = BITSTREAM_AUTH;
 	}
 
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
 	intel_smmu_hps_remapper_init(0U);
 #endif
 
 	mailbox_clear_response();
 
-	mailbox_send_cmd(MBOX_JOB_ID, MBOX_CMD_CANCEL, NULL, 0U,
-			CMD_CASUAL, NULL, NULL);
+	status = mailbox_send_cmd(MBOX_JOB_ID, MBOX_CMD_CANCEL, NULL, 0U,
+				  CMD_CASUAL, NULL, NULL);
 
-	status = mailbox_send_cmd(MBOX_JOB_ID, MBOX_RECONFIG, &argument, size,
-			CMD_CASUAL, response, &resp_len);
+	if (status == 0) {
+		status = mailbox_send_cmd(MBOX_JOB_ID, MBOX_RECONFIG, &argument, size,
+					  CMD_CASUAL, response, &resp_len);
+	}
 
 	if (status < 0) {
 		bridge_disable = false;
@@ -338,7 +340,7 @@ static uint32_t intel_fpga_config_write(uint64_t mem, uint64_t size)
 		return INTEL_SIP_SMC_STATUS_REJECTED;
 	}
 
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
 	intel_smmu_hps_remapper_init(&mem);
 #endif
 
@@ -385,7 +387,7 @@ static int is_out_of_sec_range(uint64_t reg_addr)
 	}
 #endif
 
-#if PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX3
+#if PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX3 && PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX72
 	switch (reg_addr) {
 	case(0xF8011100):	/* ECCCTRL1 */
 	case(0xF8011104):	/* ECCCTRL2 */
@@ -471,6 +473,13 @@ static int is_out_of_sec_range(uint64_t reg_addr)
 	case(SOCFPGA_SYSMGR(BOOT_SCRATCH_COLD_1)):	/* BOOT_SCRATCH_COLD1 */
 	case(SOCFPGA_SYSMGR(BOOT_SCRATCH_COLD_8)):	/* BOOT_SCRATCH_COLD8 */
 	case(SOCFPGA_SYSMGR(BOOT_SCRATCH_COLD_9)):	/* BOOT_SCRATCH_COLD9 */
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+	/* HS sysmgr BOOT_SCRATCH_COLD (SOC64-compatible layout used by U-Boot) */
+	case(SOCFPGA_HS_SYSMGR(BOOT_SCRATCH_COLD_0)):	/* HS BOOT_SCRATCH_COLD0 */
+	case(SOCFPGA_HS_SYSMGR(BOOT_SCRATCH_COLD_1)):	/* HS BOOT_SCRATCH_COLD1 */
+	case(SOCFPGA_HS_SYSMGR(BOOT_SCRATCH_COLD_8)):	/* HS BOOT_SCRATCH_COLD8 */
+	case(SOCFPGA_HS_SYSMGR(BOOT_SCRATCH_COLD_9)):	/* HS BOOT_SCRATCH_COLD9 */
+#endif
 #endif
 	case(SOCFPGA_ECC_QSPI(CTRL)):			/* ECC_QSPI_CTRL */
 	case(SOCFPGA_ECC_QSPI(ERRINTEN)):		/* ECC_QSPI_ERRINTEN */
@@ -551,14 +560,7 @@ static uint32_t intel_rsu_get_device_info(uint32_t *respbuf,
 					  unsigned int respbuf_sz)
 {
 	if (mailbox_rsu_get_device_info((uint32_t *)respbuf, respbuf_sz) < 0) {
-#if PLATFORM_MODEL == PLAT_SOCFPGA_N5X
-		/* N5X SDM firmware doesn't support device info,
-		 * returns UNKNOWN_COMMAND (3).
-		 */
-		return SMC_UNK;
-#else
 		return INTEL_SIP_SMC_RSU_ERROR;
-#endif
 	}
 
 	return INTEL_SIP_SMC_STATUS_OK;
@@ -642,7 +644,7 @@ static uint32_t intel_smc_fw_version(uint32_t *fw_version)
 	uint32_t resp_data[CONFIG_STATUS_WORD_SIZE] = {0U};
 
 	status = mailbox_send_cmd(MBOX_JOB_ID, MBOX_CONFIG_STATUS, NULL, 0U,
-			CMD_CASUAL, resp_data, &resp_len);
+				  CMD_CASUAL, resp_data, &resp_len);
 
 	if (status < 0) {
 		return INTEL_SIP_SMC_STATUS_ERROR;
@@ -691,7 +693,7 @@ static int intel_smc_get_usercode(uint32_t *user_code)
 	unsigned int resp_len = sizeof(user_code) / MBOX_WORD_BYTE;
 
 	status = mailbox_send_cmd(MBOX_JOB_ID, MBOX_CMD_GET_USERCODE, NULL,
-				0U, CMD_CASUAL, user_code, &resp_len);
+				  0U, CMD_CASUAL, user_code, &resp_len);
 
 	if (status < 0) {
 		return INTEL_SIP_SMC_STATUS_ERROR;
@@ -717,10 +719,10 @@ uint32_t intel_smc_service_completed(uint64_t addr, uint32_t size,
 
 	if (mode == SERVICE_COMPLETED_MODE_ASYNC) {
 		status = mailbox_read_response_async(job_id,
-				NULL, (uint32_t *) addr, &resp_len, 0);
+						     NULL, (uint32_t *)addr, &resp_len, 0);
 	} else {
 		status = mailbox_read_response(job_id,
-				(uint32_t *) addr, &resp_len);
+					       (uint32_t *)addr, &resp_len);
 
 		if (status == MBOX_NO_RESPONSE) {
 			status = MBOX_BUSY;
@@ -795,6 +797,7 @@ static uint32_t intel_sdm_safe_inject_seu_err(uint32_t *command, uint32_t len)
 	return INTEL_SIP_SMC_STATUS_OK;
 }
 
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
 /* SMMU HPS Remapper */
 void intel_smmu_hps_remapper_init(uint64_t *mem)
 {
@@ -814,7 +817,11 @@ void intel_smmu_hps_remapper_init(uint64_t *mem)
 int intel_smmu_hps_remapper_config(uint32_t remapper_bypass)
 {
 	/* Read out the JTAG-ID from boot scratch register */
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+	if (is_agilex5_A5C0() || is_agilex5_A5C4()) {
+#else
 	if (!is_agilex5_A36F0()) {
+#endif
 		if (remapper_bypass == 0x01) {
 			g_remapper_bypass = remapper_bypass;
 			mmio_write_32(SOCFPGA_SYSMGR(SDM_BE_ARADDR_REMAP), 0);
@@ -839,6 +846,7 @@ static void intel_inject_io96b_ecc_err(const uint32_t *syndrome, const uint32_t 
 	/* Clear response_ready BIT0 of status_register before sending next command. */
 	mmio_clrbits_32(IOSSM_CMD_RESP_STATUS, IOSSM_CMD_STATUS_RESP_READY);
 }
+#endif
 
 #if SIP_SVC_V3
 uint8_t sip_smc_cmd_cb_ret2(void *resp_desc, void *cmd_desc, uint64_t *ret_args)
@@ -966,11 +974,6 @@ uint8_t sip_smc_cmd_cb_rsu_spt(void *resp_desc, void *cmd_desc, uint64_t *ret_ar
 static uintptr_t smc_ret(void *handle, uint64_t *ret_args, uint32_t ret_args_len)
 {
 
-	if (ret_args_len < 0 || ret_args == NULL) {
-		VERBOSE("SVC V3: %s: invalid ret_args len %u ptr %p\n",
-			__func__, ret_args_len, ret_args);
-		SMC_RET1(handle, INTEL_SIP_SMC_STATUS_ERROR);
-	}
 	switch (ret_args_len) {
 	case SMC_RET_ARGS_ONE:
 		VERBOSE("SVC V3: %s: x0 0x%lx\n", __func__, ret_args[0]);
@@ -1048,13 +1051,9 @@ static uintptr_t smc_ret(void *handle, uint64_t *ret_args, uint32_t ret_args_len
 		break;
 
 	default:
-		if (ret_args_len == 0 && (int64_t)ret_args[0] == MBOX_NO_RESPONSE) {
-			SMC_RET1(handle, INTEL_SIP_SMC_STATUS_NO_RESPONSE);
-		} else {
-			VERBOSE("SVC V3: %s ret_args_len is wrong, please check %d\n ",
-				__func__, ret_args_len);
-			SMC_RET1(handle, INTEL_SIP_SMC_STATUS_ERROR);
-		}
+		VERBOSE("SVC V3: %s ret_args_len is wrong, please check %d\n ",
+			__func__, ret_args_len);
+		SMC_RET1(handle, INTEL_SIP_SMC_STATUS_ERROR);
 		break;
 	}
 }
@@ -1164,11 +1163,6 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 
 	case ALTERA_SIP_SMC_ASYNC_GET_DEVICE_IDENTITY:
 	{
-		if (!is_address_in_ddr_range(x2, MBOX_DATA_MAX_LEN * MBOX_WORD_BYTE)) {
-			ERROR("MBOX: 0x%x: Addr not in DDR range\n", smc_fid);
-			SMC_RET1(handle, INTEL_SIP_SMC_STATUS_REJECTED);
-		}
-
 		status = mailbox_send_cmd_async_v3(GET_CLIENT_ID(x1),
 						   GET_JOB_ID(x1),
 						   MBOX_CMD_GET_DEVICEID,
@@ -1177,7 +1171,7 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   (uint32_t *)x2,
-						   MBOX_DATA_MAX_LEN);
+						   2);
 
 		SMC_RET1(handle, status);
 	}
@@ -1291,16 +1285,8 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 	{
 		uint32_t *qspi_payload = (uint32_t *)x2;
 		uint32_t qspi_total_nwords = (((uint32_t)x3) / MBOX_WORD_BYTE);
-		uint32_t qspi_addr;
-		uint32_t qspi_nwords;
-
-		if (!is_address_in_ddr_range(x2, x3)) {
-			ERROR("MBOX: 0x%x: Addr not in DDR range\n", smc_fid);
-			SMC_RET1(handle, INTEL_SIP_SMC_STATUS_REJECTED);
-		}
-
-		qspi_addr = qspi_payload[0];
-		qspi_nwords = qspi_payload[1];
+		uint32_t qspi_addr = qspi_payload[0];
+		uint32_t qspi_nwords = qspi_payload[1];
 
 		if (!MBOX_IS_WORD_ALIGNED(qspi_addr)) {
 			ERROR("MBOX: 0x%x: Given address is not WORD aligned\n",
@@ -1341,11 +1327,6 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 			SMC_RET1(handle, status);
 		}
 
-		if (!is_address_in_ddr_range(x3, x4)) {
-			ERROR("MBOX: 0x%x: Addr not in DDR range\n", smc_fid);
-			SMC_RET1(handle, INTEL_SIP_SMC_STATUS_REJECTED);
-		}
-
 		uint32_t cmd_data[2] = {qspi_addr, qspi_nwords};
 
 		status = mailbox_send_cmd_async_v3(GET_CLIENT_ID(x1),
@@ -1356,7 +1337,7 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   (uint32_t *)x3,
-						   qspi_nwords);
+						   2);
 
 		SMC_RET1(handle, status);
 	}
@@ -1364,11 +1345,6 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 	case ALTERA_SIP_SMC_ASYNC_QSPI_GET_DEV_INFO:
 	{
 		uint32_t *dst_addr = (uint32_t *)x2;
-
-		if (!is_address_in_ddr_range(x2, MBOX_DATA_MAX_LEN * MBOX_WORD_BYTE)) {
-			ERROR("MBOX: 0x%x: Addr not in DDR range\n", smc_fid);
-			SMC_RET1(handle, INTEL_SIP_SMC_STATUS_REJECTED);
-		}
 
 		status = mailbox_send_cmd_async_v3(GET_CLIENT_ID(x1),
 						   GET_JOB_ID(x1),
@@ -1378,7 +1354,7 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   (uint32_t *)dst_addr,
-						   MBOX_DATA_MAX_LEN);
+						   2);
 
 		SMC_RET1(handle, status);
 	}
@@ -1482,11 +1458,6 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 				status = INTEL_SIP_SMC_STATUS_REJECTED;
 				SMC_RET1(handle, status);
 			}
-			if (!is_address_in_ddr_range(x3, cmd_payload_len * MBOX_WORD_BYTE)) {
-				ERROR("MBOX: 0x%x: Cmd payload not in DDR range\n", smc_fid);
-				status = INTEL_SIP_SMC_STATUS_REJECTED;
-				SMC_RET1(handle, status);
-			}
 		}
 
 		/* Make sure we have valid response payload length and buffer */
@@ -1495,11 +1466,6 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 			if (resp_payload_addr == NULL) {
 				ERROR("MBOX: 0x%x: Response payload address is NULL\n",
 					smc_fid);
-				status = INTEL_SIP_SMC_STATUS_REJECTED;
-				SMC_RET1(handle, status);
-			}
-			if (!is_address_in_ddr_range(x5, resp_payload_len * MBOX_WORD_BYTE)) {
-				ERROR("MBOX: 0x%x: Resp payload not in DDR range\n", smc_fid);
 				status = INTEL_SIP_SMC_STATUS_REJECTED;
 				SMC_RET1(handle, status);
 			}
@@ -1520,8 +1486,11 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 
 	case ALTERA_SIP_SMC_ASYNC_FCS_RANDOM_NUMBER_EXT:
 	{
+		uint32_t session_id = (uint32_t)x2;
+		uint32_t context_id = (uint32_t)x3;
 		uint64_t ret_random_addr = (uint64_t)x4;
 		uint32_t random_len = (uint32_t)SMC_GET_GP(handle, CTX_GPREG_X5);
+		uint32_t crypto_header = 0U;
 
 		if ((random_len > (FCS_RANDOM_EXT_MAX_WORD_SIZE * MBOX_WORD_BYTE)) ||
 		    (random_len == 0U) ||
@@ -1531,46 +1500,25 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 			SMC_RET1(handle, status);
 		}
 
-		if (!is_address_in_ddr_range(ret_random_addr, random_len)) {
-			ERROR("MBOX: 0x%x: Addr not in DDR range\n", smc_fid);
-			status = INTEL_SIP_SMC_STATUS_REJECTED;
-			SMC_RET1(handle, status);
-		}
-
-#if PLATFORM_MODEL != PLAT_SOCFPGA_N5X
-		uint32_t session_id = (uint32_t)x2;
-		uint32_t context_id = (uint32_t)x3;
-		uint32_t crypto_header = 0U;
-
 		crypto_header = ((FCS_CS_FIELD_FLAG_INIT | FCS_CS_FIELD_FLAG_FINALIZE) <<
 				  FCS_CS_FIELD_FLAG_OFFSET);
 		fcs_rng_payload payload = {session_id, context_id,
 					   crypto_header, random_len};
-#endif
 
 		status = mailbox_send_cmd_async_v3(GET_CLIENT_ID(x1),
 						   GET_JOB_ID(x1),
 						   MBOX_FCS_RANDOM_GEN,
-#if PLATFORM_MODEL != PLAT_SOCFPGA_N5X
 						   (uint32_t *)&payload,
 						   sizeof(payload) / MBOX_WORD_BYTE,
-#else
-						   NULL, 0U,
-#endif
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   (uint32_t *)ret_random_addr,
-						   random_len / MBOX_WORD_BYTE);
+						   2);
 		SMC_RET1(handle, status);
 	}
 
 	case ALTERA_SIP_SMC_ASYNC_FCS_GET_PROVISION_DATA:
 	{
-		if (!is_address_in_ddr_range(x2, MBOX_DATA_MAX_LEN * MBOX_WORD_BYTE)) {
-			ERROR("MBOX: 0x%x: Addr not in DDR range\n", smc_fid);
-			SMC_RET1(handle, INTEL_SIP_SMC_STATUS_REJECTED);
-		}
-
 		status = mailbox_send_cmd_async_v3(GET_CLIENT_ID(x1),
 						   GET_JOB_ID(x1),
 						   MBOX_FCS_GET_PROVISION,
@@ -1579,7 +1527,7 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   (uint32_t *)x2,
-						   MBOX_DATA_MAX_LEN);
+						   2);
 		SMC_RET1(handle, status);
 	}
 
@@ -1743,7 +1691,7 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   (uint32_t *)ret_key_addr,
-						   key_len / MBOX_WORD_BYTE);
+						   2);
 		SMC_RET1(handle, status);
 	}
 
@@ -1791,7 +1739,7 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   (uint32_t *)ret_key_addr,
-						   key_len / MBOX_WORD_BYTE);
+						   2);
 		SMC_RET1(handle, status);
 	}
 
@@ -1964,12 +1912,6 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 		uint32_t src_size = (uint32_t)x3;
 		uint32_t *dst_addr = (uint32_t *)x4;
 
-		if (!is_address_in_ddr_range(x2, src_size) ||
-		    !is_address_in_ddr_range(x4, MBOX_DATA_MAX_LEN * MBOX_WORD_BYTE)) {
-			ERROR("MBOX: 0x%x: Addr not in DDR range\n", smc_fid);
-			SMC_RET1(handle, INTEL_SIP_SMC_STATUS_REJECTED);
-		}
-
 		status = mailbox_send_cmd_async_v3(GET_CLIENT_ID(x1),
 						   GET_JOB_ID(x1),
 						   MBOX_CMD_MCTP_MSG,
@@ -1978,7 +1920,7 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   dst_addr,
-						   MBOX_DATA_MAX_LEN);
+						   2);
 
 		SMC_RET1(handle, status);
 	}
@@ -2526,7 +2468,7 @@ uintptr_t sip_smc_handler_v1(uint32_t smc_fid,
 					x3, x4, x5, x6, 0, true, &send_id, 0, 0);
 		SMC_RET1(handle, status);
 
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
 	case INTEL_SIP_SMC_FCS_SDM_REMAPPER_CONFIG:
 		status = intel_smmu_hps_remapper_config(x1);
 		SMC_RET1(handle, status);
@@ -2559,7 +2501,7 @@ uintptr_t sip_smc_handler_v1(uint32_t smc_fid,
 		SMC_RET4(handle, INTEL_SIP_SMC_STATUS_OK, VERSION_MAJOR,
 			 VERSION_MINOR, VERSION_PATCH);
 
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
 	case INTEL_SIP_SMC_INJECT_IO96B_ECC_ERR:
 		intel_inject_io96b_ecc_err((uint32_t *)&x1, (uint32_t)x2);
 		SMC_RET1(handle, INTEL_SIP_SMC_STATUS_OK);

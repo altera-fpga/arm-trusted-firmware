@@ -10,7 +10,7 @@
 #include <common/debug.h>
 
 #include "alignment_utils.h"
-#include "socfpga_mailbox.h"
+#include "mailbox/socfpga_mailbox.h"
 
 bool is_size_4_bytes_aligned(uint32_t size)
 {

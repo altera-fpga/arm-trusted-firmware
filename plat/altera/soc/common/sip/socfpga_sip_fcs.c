@@ -11,7 +11,7 @@
 
 #include "socfpga_plat_def.h"
 #include "socfpga_fcs.h"
-#include "socfpga_mailbox.h"
+#include "mailbox/socfpga_mailbox.h"
 #include "socfpga_private.h"
 #include "socfpga_sip_svc.h"
 #include "../lib/utils/alignment_utils.h"
@@ -196,17 +196,21 @@ uint8_t fcs_cs_hash_sig_verify_req_cb(void *resp_desc, void *cmd_desc, uint64_t 
 uint8_t fcs_cs_aes_cb(void *resp_desc, void *cmd_desc, uint64_t *ret_args)
 {
 	uint8_t ret_args_len = 0U;
+	uint32_t nbytes_ret = 0U;
 	sdm_response_t *resp = (sdm_response_t *)resp_desc;
 	sdm_command_t *cmd = (sdm_command_t *)cmd_desc;
 
 	(void)cmd;
 
+	/* Data size written to the destination is always at last index of the response data. */
+	nbytes_ret = resp->resp_data[resp->rcvd_resp_len - 1];
+
 	INFO("MBOX: %s: mbox_err 0x%x, nbytes_ret %d\n", __func__,
-		resp->err_code, resp->resp_data[3]);
+		resp->err_code, nbytes_ret);
 
 	ret_args[ret_args_len++] = INTEL_SIP_SMC_STATUS_OK;
 	ret_args[ret_args_len++] = resp->err_code;
-	ret_args[ret_args_len++] = resp->resp_data[3];
+	ret_args[ret_args_len++] = nbytes_ret;
 
 	return ret_args_len;
 }
@@ -348,7 +352,7 @@ uint32_t intel_fcs_random_number_gen(uint64_t addr, uint64_t *ret_size,
 	}
 
 	status = mailbox_send_cmd(MBOX_JOB_ID, MBOX_FCS_RANDOM_GEN, NULL, 0U,
-			CMD_CASUAL, random_data, &resp_len);
+				  CMD_CASUAL, random_data, &resp_len);
 
 	if (status < 0) {
 		*mbox_error = -status;
@@ -427,17 +431,17 @@ uint32_t intel_fcs_send_cert(uint32_t smc_fid, uint32_t trans_id,
 
 	status = (smc_fid == ALTERA_SIP_SMC_ASYNC_FCS_SEND_CERTIFICATE) ?
 		mailbox_send_cmd_async_v3(GET_CLIENT_ID(trans_id),
-					GET_JOB_ID(trans_id),
-					MBOX_CMD_VAB_SRC_CERT,
-					(uint32_t *) addr,
-					size / MBOX_WORD_BYTE,
-					MBOX_CMD_FLAG_CASUAL,
-					fcs_send_cert_cb,
-					NULL,
-					0U) :
+					  GET_JOB_ID(trans_id),
+					  MBOX_CMD_VAB_SRC_CERT,
+					  (uint32_t *)addr,
+					  size / MBOX_WORD_BYTE,
+					  MBOX_CMD_FLAG_CASUAL,
+					  fcs_send_cert_cb,
+					  NULL,
+					  0U) :
 		mailbox_send_cmd_async(send_id, MBOX_CMD_VAB_SRC_CERT,
-				(uint32_t *)addr, size / MBOX_WORD_BYTE,
-				CMD_DIRECT);
+				       (uint32_t *)addr, size / MBOX_WORD_BYTE,
+				       CMD_DIRECT);
 
 	flush_dcache_range(addr, size);
 
@@ -453,7 +457,7 @@ uint32_t intel_fcs_get_provision_data(uint32_t *send_id)
 	int status;
 
 	status = mailbox_send_cmd_async(send_id, MBOX_FCS_GET_PROVISION,
-				NULL, 0U, CMD_DIRECT);
+					NULL, 0U, CMD_DIRECT);
 
 	if (status < 0) {
 		return INTEL_SIP_SMC_STATUS_ERROR;
@@ -510,8 +514,8 @@ uint32_t intel_fcs_cntr_set_preauth(uint32_t smc_fid, uint32_t trans_id,
 						  NULL,
 						  0U) :
 			mailbox_send_cmd(MBOX_JOB_ID, MBOX_FCS_CNTR_SET_PREAUTH,
-				  (uint32_t *) &payload, payload_size,
-				  CMD_CASUAL, NULL, NULL);
+					 (uint32_t *)&payload, payload_size,
+					 CMD_CASUAL, NULL, NULL);
 
 	if (status < 0) {
 		*mbox_error = -status;
@@ -545,8 +549,8 @@ uint32_t intel_fcs_encryption(uint32_t src_addr, uint32_t src_size,
 	load_size = sizeof(payload) / MBOX_WORD_BYTE;
 
 	status = mailbox_send_cmd_async(send_id, MBOX_FCS_ENCRYPT_REQ,
-				(uint32_t *) &payload, load_size,
-				CMD_INDIRECT);
+					(uint32_t *)&payload, load_size,
+					CMD_INDIRECT);
 	inv_dcache_range(dst_addr, dst_size);
 
 	if (status < 0) {
@@ -586,8 +590,8 @@ uint32_t intel_fcs_decryption(uint32_t src_addr, uint32_t src_size,
 	load_size = sizeof(payload) / MBOX_WORD_BYTE;
 
 	status = mailbox_send_cmd_async(send_id, MBOX_FCS_DECRYPT_REQ,
-				(uint32_t *) &payload, load_size,
-				CMD_INDIRECT);
+					(uint32_t *)&payload, load_size,
+					CMD_INDIRECT);
 	inv_dcache_range(dst_addr, dst_size);
 
 	if (status < 0) {
@@ -623,8 +627,8 @@ int intel_fcs_encryption_ext(uint32_t smc_fid, uint32_t trans_id,
 		return INTEL_SIP_SMC_STATUS_REJECTED;
 	}
 
-	/* On the Agilex3 platform, we will use the SMMU payload address */
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
+	/* On the Agilex5 platform, we will use the SMMU payload address */
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
 	src_addr_sdm = smmu_src_addr;
 	dst_addr_sdm = smmu_dst_addr;
 #endif
@@ -643,17 +647,17 @@ int intel_fcs_encryption_ext(uint32_t smc_fid, uint32_t trans_id,
 
 	status = (smc_fid == ALTERA_SIP_SMC_ASYNC_FCS_CRYPTION_EXT) ?
 		mailbox_send_cmd_async_v3(GET_CLIENT_ID(trans_id),
-					GET_JOB_ID(trans_id),
-					MBOX_FCS_ENCRYPT_REQ,
-					(uint32_t *) &payload,
-					payload_size,
-					MBOX_CMD_FLAG_INDIRECT,
-					fcs_sdos_crypto_request_cb,
-					NULL,
-					0U) :
+					  GET_JOB_ID(trans_id),
+					  MBOX_FCS_ENCRYPT_REQ,
+					  (uint32_t *)&payload,
+					  payload_size,
+					  MBOX_CMD_FLAG_INDIRECT,
+					  fcs_sdos_crypto_request_cb,
+					  NULL,
+					  0U) :
 		mailbox_send_cmd(MBOX_JOB_ID, MBOX_FCS_ENCRYPT_REQ,
-				(uint32_t *) &payload, payload_size,
-				CMD_CASUAL, resp_data, &resp_len);
+				 (uint32_t *)&payload, payload_size,
+				 CMD_CASUAL, resp_data, &resp_len);
 
 	if (status < 0) {
 		*mbox_error = -status;
@@ -699,8 +703,8 @@ int intel_fcs_decryption_ext(uint32_t smc_fid, uint32_t trans_id,
 		return INTEL_SIP_SMC_STATUS_REJECTED;
 	}
 
-	/* On the Agilex3 platform, we will use the SMMU payload address */
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
+	/* On the Agilex5 platform, we will use the SMMU payload address */
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
 	src_addr_sdm = smmu_src_addr;
 	dst_addr_sdm = smmu_dst_addr;
 #endif
@@ -724,17 +728,17 @@ int intel_fcs_decryption_ext(uint32_t smc_fid, uint32_t trans_id,
 
 	status = (smc_fid == ALTERA_SIP_SMC_ASYNC_FCS_CRYPTION_EXT) ?
 		mailbox_send_cmd_async_v3(GET_CLIENT_ID(trans_id),
-					GET_JOB_ID(trans_id),
-					MBOX_FCS_DECRYPT_REQ,
-					(uint32_t *) &payload,
-					payload_size,
-					MBOX_CMD_FLAG_INDIRECT,
-					fcs_sdos_crypto_request_cb,
-					NULL,
-					0U) :
+					  GET_JOB_ID(trans_id),
+					  MBOX_FCS_DECRYPT_REQ,
+					  (uint32_t *)&payload,
+					  payload_size,
+					  MBOX_CMD_FLAG_INDIRECT,
+					  fcs_sdos_crypto_request_cb,
+					  NULL,
+					  0U) :
 		mailbox_send_cmd(MBOX_JOB_ID, MBOX_FCS_DECRYPT_REQ,
-				(uint32_t *) &payload, payload_size,
-				CMD_CASUAL, resp_data, &resp_len);
+				 (uint32_t *)&payload, payload_size,
+				 CMD_CASUAL, resp_data, &resp_len);
 
 	if (status == MBOX_RET_SDOS_DECRYPTION_ERROR_102 ||
 		status == MBOX_RET_SDOS_DECRYPTION_ERROR_103) {
@@ -771,8 +775,8 @@ int intel_fcs_sigma_teardown(uint32_t session_id, uint32_t *mbox_error)
 	};
 
 	status = mailbox_send_cmd(MBOX_JOB_ID, MBOX_PSG_SIGMA_TEARDOWN,
-			(uint32_t *) &message, sizeof(message) / MBOX_WORD_BYTE,
-			CMD_CASUAL, NULL, NULL);
+				  (uint32_t *)&message, sizeof(message) / MBOX_WORD_BYTE,
+				  CMD_CASUAL, NULL, NULL);
 
 	if (status < 0) {
 		*mbox_error = -status;
@@ -791,7 +795,7 @@ int intel_fcs_chip_id(uint32_t *id_low, uint32_t *id_high, uint32_t *mbox_error)
 	load_size = sizeof(chip_id) / MBOX_WORD_BYTE;
 
 	status = mailbox_send_cmd(MBOX_JOB_ID, MBOX_CMD_GET_CHIPID, NULL,
-			0U, CMD_CASUAL, (uint32_t *) chip_id, &load_size);
+				  0U, CMD_CASUAL, (uint32_t *)chip_id, &load_size);
 
 	if (status < 0) {
 		*mbox_error = -status;
@@ -818,8 +822,8 @@ int intel_fcs_attestation_subkey(uint64_t src_addr, uint32_t src_size,
 	}
 
 	status = mailbox_send_cmd(MBOX_JOB_ID, MBOX_ATTESTATION_SUBKEY,
-			(uint32_t *) src_addr, send_size, CMD_CASUAL,
-			(uint32_t *) dst_addr, &ret_size);
+				  (uint32_t *)src_addr, send_size, CMD_CASUAL,
+				  (uint32_t *)dst_addr, &ret_size);
 
 	if (status < 0) {
 		*mbox_error = -status;
@@ -845,8 +849,8 @@ int intel_fcs_get_measurement(uint64_t src_addr, uint32_t src_size,
 	}
 
 	status = mailbox_send_cmd(MBOX_JOB_ID, MBOX_GET_MEASUREMENT,
-			(uint32_t *) src_addr, send_size, CMD_CASUAL,
-			(uint32_t *) dst_addr, &ret_size);
+				  (uint32_t *)src_addr, send_size, CMD_CASUAL,
+				  (uint32_t *)dst_addr, &ret_size);
 
 	if (status < 0) {
 		*mbox_error = -status;
@@ -870,7 +874,7 @@ uint32_t intel_fcs_get_rom_patch_sha384(uint64_t addr, uint64_t *ret_size,
 	}
 
 	status = mailbox_send_cmd(MBOX_JOB_ID, MBOX_GET_ROM_PATCH_SHA384, NULL, 0U,
-			CMD_CASUAL, (uint32_t *) addr, &resp_len);
+				  CMD_CASUAL, (uint32_t *)addr, &resp_len);
 
 	if (status < 0) {
 		*mbox_error = -status;
@@ -911,17 +915,17 @@ int intel_fcs_get_attestation_cert(uint32_t smc_fid, uint32_t trans_id,
 
 	status = (smc_fid == ALTERA_SIP_SMC_ASYNC_FCS_GET_ATTESTATION_CERT) ?
 		mailbox_send_cmd_async_v3(GET_CLIENT_ID(trans_id),
-					GET_JOB_ID(trans_id),
-					MBOX_GET_ATTESTATION_CERT,
-					(uint32_t *) &cert_request,
-					1U,
-					MBOX_CMD_FLAG_CASUAL,
-					fcs_get_attest_cert_cb,
-					(uint32_t *)dst_addr,
-					ret_size) :
+					  GET_JOB_ID(trans_id),
+					  MBOX_GET_ATTESTATION_CERT,
+					  (uint32_t *)&cert_request,
+					  1U,
+					  MBOX_CMD_FLAG_CASUAL,
+					  fcs_get_attest_cert_cb,
+					  (uint32_t *)dst_addr,
+					  2U) :
 		mailbox_send_cmd(MBOX_JOB_ID, MBOX_GET_ATTESTATION_CERT,
-			(uint32_t *) &cert_request, 1U, CMD_CASUAL,
-			(uint32_t *) dst_addr, &ret_size);
+				 (uint32_t *)&cert_request, 1U, CMD_CASUAL,
+				 (uint32_t *)dst_addr, &ret_size);
 
 	if (status < 0) {
 		*mbox_error = -status;
@@ -950,17 +954,17 @@ int intel_fcs_create_cert_on_reload(uint32_t smc_fid, uint32_t trans_id,
 
 	status = (smc_fid == ALTERA_SIP_SMC_ASYNC_FCS_CREATE_CERT_ON_RELOAD) ?
 		mailbox_send_cmd_async_v3(GET_CLIENT_ID(trans_id),
-					GET_JOB_ID(trans_id),
-					MBOX_CREATE_CERT_ON_RELOAD,
-					(uint32_t *) &cert_request,
-					1U,
-					MBOX_CMD_FLAG_CASUAL,
-					fcs_create_cert_reload_cb,
-					NULL,
-					0U) :
+					  GET_JOB_ID(trans_id),
+					  MBOX_CREATE_CERT_ON_RELOAD,
+					  (uint32_t *)&cert_request,
+					  1U,
+					  MBOX_CMD_FLAG_CASUAL,
+					  fcs_create_cert_reload_cb,
+					  NULL,
+					  0U) :
 		mailbox_send_cmd(MBOX_JOB_ID, MBOX_CREATE_CERT_ON_RELOAD,
-			(uint32_t *) &cert_request, 1U, CMD_CASUAL,
-			NULL, NULL);
+				 (uint32_t *)&cert_request, 1U, CMD_CASUAL,
+				 NULL, NULL);
 
 	if (status < 0) {
 		*mbox_error = -status;
@@ -981,7 +985,7 @@ int intel_fcs_open_crypto_service_session(uint32_t *session_id,
 	}
 
 	status = mailbox_send_cmd(MBOX_JOB_ID, MBOX_FCS_OPEN_CS_SESSION,
-			NULL, 0U, CMD_CASUAL, session_id, &resp_len);
+				  NULL, 0U, CMD_CASUAL, session_id, &resp_len);
 
 	if (status < 0) {
 		*mbox_error = -status;
@@ -1001,7 +1005,7 @@ int intel_fcs_close_crypto_service_session(uint32_t session_id,
 	}
 
 	status = mailbox_send_cmd(MBOX_JOB_ID, MBOX_FCS_CLOSE_CS_SESSION,
-			&session_id, 1U, CMD_CASUAL, NULL, NULL);
+				  &session_id, 1U, CMD_CASUAL, NULL, NULL);
 
 	if (status < 0) {
 		*mbox_error = -status;
@@ -1026,8 +1030,8 @@ int intel_fcs_import_crypto_service_key(uint64_t src_addr, uint32_t src_size,
 	}
 
 	status = mailbox_send_cmd_async(send_id, MBOX_FCS_IMPORT_CS_KEY,
-				(uint32_t *)src_addr, src_size / MBOX_WORD_BYTE,
-				CMD_INDIRECT);
+					(uint32_t *)src_addr, src_size / MBOX_WORD_BYTE,
+					CMD_INDIRECT);
 
 	if (status < 0) {
 		return INTEL_SIP_SMC_STATUS_ERROR;
@@ -1065,8 +1069,8 @@ int intel_fcs_export_crypto_service_key(uint32_t session_id, uint32_t key_id,
 	payload_size = sizeof(payload) / MBOX_WORD_BYTE;
 
 	status = mailbox_send_cmd(MBOX_JOB_ID, MBOX_FCS_EXPORT_CS_KEY,
-			(uint32_t *) &payload, payload_size,
-			CMD_CASUAL, resp_data, &resp_len);
+				  (uint32_t *)&payload, payload_size,
+				  CMD_CASUAL, resp_data, &resp_len);
 
 	if (resp_len > 0) {
 		op_status = resp_data[0] & FCS_CS_KEY_RESP_STATUS_MASK;
@@ -1122,8 +1126,8 @@ int intel_fcs_remove_crypto_service_key(uint32_t session_id, uint32_t key_id,
 	payload_size = sizeof(payload) / MBOX_WORD_BYTE;
 
 	status = mailbox_send_cmd(MBOX_JOB_ID, MBOX_FCS_REMOVE_CS_KEY,
-			(uint32_t *) &payload, payload_size,
-			CMD_CASUAL, &resp_data, &resp_len);
+				  (uint32_t *)&payload, payload_size,
+				  CMD_CASUAL, &resp_data, &resp_len);
 
 	if (resp_len > 0) {
 		op_status = resp_data & FCS_CS_KEY_RESP_STATUS_MASK;
@@ -1164,8 +1168,8 @@ int intel_fcs_get_crypto_service_key_info(uint32_t session_id, uint32_t key_id,
 	payload_size = sizeof(payload) / MBOX_WORD_BYTE;
 
 	status = mailbox_send_cmd(MBOX_JOB_ID, MBOX_FCS_GET_CS_KEY_INFO,
-				(uint32_t *) &payload, payload_size,
-				CMD_CASUAL, (uint32_t *) dst_addr, &resp_len);
+				  (uint32_t *)&payload, payload_size,
+				  CMD_CASUAL, (uint32_t *)dst_addr, &resp_len);
 
 	/* flush cache before mmio read to avoid reading old values */
 	if (resp_len > 0) {
@@ -1274,8 +1278,8 @@ int intel_fcs_get_digest_update_finalize(uint32_t smc_fid, uint32_t trans_id,
 	}
 	/* Data source address and size */
 
-	/* On the Agilex3 platform, we will use the SMMU payload address */
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
+	/* On the Agilex5 platform, we will use the SMMU payload address */
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
 	payload[i] = smmu_src_addr;
 #else
 	payload[i] = src_addr;
@@ -1287,17 +1291,17 @@ int intel_fcs_get_digest_update_finalize(uint32_t smc_fid, uint32_t trans_id,
 	status = ((smc_fid == ALTERA_SIP_SMC_ASYNC_FCS_GET_DIGEST_UPDATE) ||
 		  (smc_fid == ALTERA_SIP_SMC_ASYNC_FCS_GET_DIGEST_FINALIZE)) ?
 			mailbox_send_cmd_async_v3(GET_CLIENT_ID(trans_id),
-						   GET_JOB_ID(trans_id),
-						   MBOX_FCS_GET_DIGEST_REQ,
-						   payload,
-						   i,
-						   MBOX_CMD_FLAG_CASUAL,
-						   fcs_cs_get_digest_cb,
-						   (uint32_t *)dst_addr,
-						   resp_len) :
+						  GET_JOB_ID(trans_id),
+						  MBOX_FCS_GET_DIGEST_REQ,
+						  payload,
+						  i,
+						  MBOX_CMD_FLAG_CASUAL,
+						  fcs_cs_get_digest_cb,
+						  (uint32_t *)dst_addr,
+						  2U) :
 			mailbox_send_cmd(MBOX_JOB_ID, MBOX_FCS_GET_DIGEST_REQ,
-				payload, i, CMD_CASUAL,
-				(uint32_t *) dst_addr, &resp_len);
+					 payload, i, CMD_CASUAL,
+					 (uint32_t *)dst_addr, &resp_len);
 
 	if (is_finalised != 0U) {
 		memset((void *)&fcs_sha_get_digest_param, 0,
@@ -1514,7 +1518,7 @@ int intel_fcs_mac_verify_update_finalize(uint32_t smc_fid, uint32_t trans_id,
 	}
 
 	/* Data source address and size */
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
 	payload[i] = (uint32_t)smmu_src_addr;
 #else
 	payload[i] = src_addr;
@@ -1542,17 +1546,17 @@ int intel_fcs_mac_verify_update_finalize(uint32_t smc_fid, uint32_t trans_id,
 	status = ((smc_fid == ALTERA_SIP_SMC_ASYNC_FCS_MAC_VERIFY_UPDATE) ||
 		  (smc_fid == ALTERA_SIP_SMC_ASYNC_FCS_MAC_VERIFY_FINALIZE)) ?
 			mailbox_send_cmd_async_v3(GET_CLIENT_ID(trans_id),
-						   GET_JOB_ID(trans_id),
-						   MBOX_FCS_MAC_VERIFY_REQ,
-						   payload,
-						   i,
-						   MBOX_CMD_FLAG_CASUAL,
-						   fcs_cs_mac_verify_cb,
-						   (uint32_t *)dst_addr,
-						   resp_len) :
+						  GET_JOB_ID(trans_id),
+						  MBOX_FCS_MAC_VERIFY_REQ,
+						  payload,
+						  i,
+						  MBOX_CMD_FLAG_CASUAL,
+						  fcs_cs_mac_verify_cb,
+						  (uint32_t *)dst_addr,
+						  2U) :
 			mailbox_send_cmd(MBOX_JOB_ID, MBOX_FCS_MAC_VERIFY_REQ,
-				payload, i, CMD_CASUAL,
-				(uint32_t *) dst_addr, &resp_len);
+					 payload, i, CMD_CASUAL,
+					 (uint32_t *)dst_addr, &resp_len);
 
 	if (is_finalised) {
 		memset((void *)&fcs_sha_mac_verify_param, 0,
@@ -1789,17 +1793,17 @@ int intel_fcs_ecdsa_hash_sign_finalize(uint32_t smc_fid, uint32_t trans_id,
 
 	status = (smc_fid == ALTERA_SIP_SMC_ASYNC_FCS_ECDSA_HASH_SIGN_FINALIZE) ?
 			mailbox_send_cmd_async_v3(GET_CLIENT_ID(trans_id),
-						   GET_JOB_ID(trans_id),
-						   MBOX_FCS_ECDSA_HASH_SIGN_REQ,
-						   payload,
-						   i,
-						   MBOX_CMD_FLAG_CASUAL,
-						   fcs_cs_hash_sign_req_cb,
-						   (uint32_t *)dst_addr,
-						   resp_len) :
+						  GET_JOB_ID(trans_id),
+						  MBOX_FCS_ECDSA_HASH_SIGN_REQ,
+						  payload,
+						  i,
+						  MBOX_CMD_FLAG_CASUAL,
+						  fcs_cs_hash_sign_req_cb,
+						  (uint32_t *)dst_addr,
+						  2U) :
 			mailbox_send_cmd(MBOX_JOB_ID, MBOX_FCS_ECDSA_HASH_SIGN_REQ,
-			payload, i, CMD_CASUAL, (uint32_t *) dst_addr,
-			&resp_len);
+					 payload, i, CMD_CASUAL, (uint32_t *)dst_addr,
+					 &resp_len);
 
 	memset((void *) &fcs_ecdsa_hash_sign_param,
 			0, sizeof(fcs_crypto_service_data));
@@ -1901,18 +1905,18 @@ int intel_fcs_ecdsa_hash_sig_verify_finalize(uint32_t smc_fid, uint32_t trans_id
 
 	status = (smc_fid == ALTERA_SIP_SMC_ASYNC_FCS_ECDSA_HASH_SIG_VERIFY_FINALIZE) ?
 		mailbox_send_cmd_async_v3(GET_CLIENT_ID(trans_id),
-					GET_JOB_ID(trans_id),
-					MBOX_FCS_ECDSA_HASH_SIG_VERIFY,
-					payload,
-					i,
-					MBOX_CMD_FLAG_CASUAL,
-					fcs_cs_hash_sig_verify_req_cb,
-					(uint32_t *)dst_addr,
-					resp_len) :
+					  GET_JOB_ID(trans_id),
+					  MBOX_FCS_ECDSA_HASH_SIG_VERIFY,
+					  payload,
+					  i,
+					  MBOX_CMD_FLAG_CASUAL,
+					  fcs_cs_hash_sig_verify_req_cb,
+					  (uint32_t *)dst_addr,
+					  2U) :
 
 		mailbox_send_cmd(MBOX_JOB_ID, MBOX_FCS_ECDSA_HASH_SIG_VERIFY,
-			payload, i, CMD_CASUAL, (uint32_t *) dst_addr,
-			&resp_len);
+				 payload, i, CMD_CASUAL, (uint32_t *)dst_addr,
+				 &resp_len);
 
 	memset((void *)&fcs_ecdsa_hash_sig_verify_param,
 			0, sizeof(fcs_crypto_service_data));
@@ -2011,7 +2015,7 @@ int intel_fcs_ecdsa_sha2_data_sign_update_finalize(uint32_t smc_fid, uint32_t tr
 	}
 
 	/* Data source address and size */
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
 	payload[i] = (uint32_t)smmu_src_addr;
 #else
 	payload[i] = src_addr;
@@ -2023,18 +2027,18 @@ int intel_fcs_ecdsa_sha2_data_sign_update_finalize(uint32_t smc_fid, uint32_t tr
 	status = ((smc_fid == ALTERA_SIP_SMC_ASYNC_FCS_ECDSA_SHA2_DATA_SIGN_UPDATE) ||
 		  (smc_fid == ALTERA_SIP_SMC_ASYNC_FCS_ECDSA_SHA2_DATA_SIGN_FINALIZE)) ?
 			mailbox_send_cmd_async_v3(GET_CLIENT_ID(trans_id),
-						GET_JOB_ID(trans_id),
-						MBOX_FCS_ECDSA_SHA2_DATA_SIGN_REQ,
-						payload,
-						i,
-						MBOX_CMD_FLAG_CASUAL,
-						fcs_cs_data_sign_req_cb,
-						(uint32_t *)dst_addr,
-						resp_len) :
+						  GET_JOB_ID(trans_id),
+						  MBOX_FCS_ECDSA_SHA2_DATA_SIGN_REQ,
+						  payload,
+						  i,
+						  MBOX_CMD_FLAG_CASUAL,
+						  fcs_cs_data_sign_req_cb,
+						  (uint32_t *)dst_addr,
+						  2U) :
 			mailbox_send_cmd(MBOX_JOB_ID,
-			MBOX_FCS_ECDSA_SHA2_DATA_SIGN_REQ, payload,
-			i, CMD_CASUAL, (uint32_t *) dst_addr,
-			&resp_len);
+					 MBOX_FCS_ECDSA_SHA2_DATA_SIGN_REQ, payload,
+					 i, CMD_CASUAL, (uint32_t *)dst_addr,
+					 &resp_len);
 
 	if (is_finalised != 0U) {
 		memset((void *)&fcs_sha2_data_sign_param, 0,
@@ -2245,8 +2249,8 @@ int intel_fcs_ecdsa_sha2_data_sig_verify_update_finalize(uint32_t smc_fid, uint3
 	}
 
 	/* Data source address and size */
-	/* On the Agilex3 platform, the SMMU remapped address is used */
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
+	/* On the Agilex5 platform, the SMMU remapped address is used */
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
 	payload[i] = smmu_src_addr;
 #else
 	payload[i] = src_addr;
@@ -2274,17 +2278,17 @@ int intel_fcs_ecdsa_sha2_data_sig_verify_update_finalize(uint32_t smc_fid, uint3
 	status = ((smc_fid == ALTERA_SIP_SMC_ASYNC_FCS_ECDSA_SHA2_DATA_SIG_VERIFY_UPDATE) ||
 		  (smc_fid == ALTERA_SIP_SMC_ASYNC_FCS_ECDSA_SHA2_DATA_SIG_VERIFY_FINALIZE)) ?
 			mailbox_send_cmd_async_v3(GET_CLIENT_ID(trans_id),
-						GET_JOB_ID(trans_id),
-						MBOX_FCS_ECDSA_SHA2_DATA_SIGN_VERIFY,
-						payload,
-						i,
-						MBOX_CMD_FLAG_CASUAL,
-						fcs_cs_data_sig_verify_req_cb,
-						(uint32_t *)dst_addr,
-						resp_len) :
+						  GET_JOB_ID(trans_id),
+						  MBOX_FCS_ECDSA_SHA2_DATA_SIGN_VERIFY,
+						  payload,
+						  i,
+						  MBOX_CMD_FLAG_CASUAL,
+						  fcs_cs_data_sig_verify_req_cb,
+						  (uint32_t *)dst_addr,
+						  2U) :
 			mailbox_send_cmd(MBOX_JOB_ID,
-			MBOX_FCS_ECDSA_SHA2_DATA_SIGN_VERIFY, payload, i,
-			CMD_CASUAL, (uint32_t *) dst_addr, &resp_len);
+					 MBOX_FCS_ECDSA_SHA2_DATA_SIGN_VERIFY, payload, i,
+					 CMD_CASUAL, (uint32_t *)dst_addr, &resp_len);
 
 	if (is_finalised != 0U) {
 		memset((void *) &fcs_sha2_data_sig_verify_param, 0,
@@ -2493,14 +2497,14 @@ int intel_fcs_ecdsa_get_pubkey_finalize(uint32_t smc_fid, uint32_t trans_id,
 
 	status = (smc_fid == ALTERA_SIP_SMC_ASYNC_FCS_ECDSA_GET_PUBKEY_FINALIZE) ?
 			mailbox_send_cmd_async_v3(GET_CLIENT_ID(trans_id),
-						GET_JOB_ID(trans_id),
-						MBOX_FCS_ECDSA_GET_PUBKEY,
-						payload,
-						i,
-						MBOX_CMD_FLAG_CASUAL,
-						fcs_cs_get_public_key_cb,
-						(uint32_t *)dst_addr,
-						ret_size) :
+						  GET_JOB_ID(trans_id),
+						  MBOX_FCS_ECDSA_GET_PUBKEY,
+						  payload,
+						  i,
+						  MBOX_CMD_FLAG_CASUAL,
+						  fcs_cs_get_public_key_cb,
+						  (uint32_t *)dst_addr,
+						  2U) :
 			mailbox_send_cmd(MBOX_JOB_ID,
 					 MBOX_FCS_ECDSA_GET_PUBKEY,
 			payload, i, CMD_CASUAL,
@@ -2606,10 +2610,10 @@ int intel_fcs_ecdh_request_finalize(uint32_t smc_fid, uint32_t trans_id,
 						  MBOX_CMD_FLAG_CASUAL,
 						  fcs_cs_ecdh_request_cb,
 						  (uint32_t *)dst_addr,
-						  resp_len) :
+						  2U) :
 			mailbox_send_cmd(MBOX_JOB_ID, MBOX_FCS_ECDH_REQUEST,
-			payload, i, CMD_CASUAL, (uint32_t *) dst_addr,
-			&resp_len);
+					 payload, i, CMD_CASUAL, (uint32_t *)dst_addr,
+					 &resp_len);
 
 	memset((void *)&fcs_ecdh_request_param, 0,
 			sizeof(fcs_crypto_service_data));
@@ -2653,7 +2657,7 @@ int intel_fcs_aes_crypt_init(uint32_t session_id, uint32_t context_id,
 	    (((*param_addr_ptr & FCS_CRYPTO_BLOCK_MODE_MASK) != FCS_CRYPTO_ECB_MODE) &&
 	    ((*param_addr_ptr & FCS_CRYPTO_BLOCK_MODE_MASK) != FCS_CRYPTO_CBC_MODE) &&
 	    ((*param_addr_ptr & FCS_CRYPTO_BLOCK_MODE_MASK) != FCS_CRYPTO_CTR_MODE)
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
 	    &&
 	    ((*param_addr_ptr & FCS_CRYPTO_BLOCK_MODE_MASK) != FCS_CRYPTO_GCM_MODE) &&
 	    ((*param_addr_ptr & FCS_CRYPTO_BLOCK_MODE_MASK) != FCS_CRYPTO_GCM_GHASH_MODE)
@@ -2737,7 +2741,7 @@ int intel_fcs_aes_crypt_update_finalize(uint32_t smc_fid, uint32_t trans_id,
 	 * should be in multiples of 16 bytes. For other platforms and other modes, it should be
 	 * in multiples of 32 bytes.
 	 */
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
 	uint32_t block_mode = fcs_aes_init_payload.crypto_param[0] & FCS_CRYPTO_BLOCK_MODE_MASK;
 
 	if ((block_mode == FCS_CRYPTO_GCM_MODE) ||
@@ -2808,8 +2812,8 @@ int intel_fcs_aes_crypt_update_finalize(uint32_t smc_fid, uint32_t trans_id,
 		i += fcs_aes_init_payload.param_size / MBOX_WORD_BYTE;
 	}
 
-	/* On the Agilex3 platform, we will use the SMMU payload address */
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
+	/* On the Agilex5 platform, we will use the SMMU payload address */
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
 	src_addr_sdm = (uint32_t)smmu_src_addr;
 	dst_addr_sdm = (uint32_t)smmu_dst_addr;
 #endif
@@ -2823,7 +2827,7 @@ int intel_fcs_aes_crypt_update_finalize(uint32_t smc_fid, uint32_t trans_id,
 	fcs_aes_crypt_payload[i] = dst_size;
 	i++;
 
-	/* Padding data size, only on Agilex3 with GCM and GCM-GHASH modes. */
+	/* Padding data size, only on Agilex5 with GCM and GCM-GHASH modes. */
 #if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
 	if ((block_mode == FCS_CRYPTO_GCM_MODE) ||
 	    (block_mode == FCS_CRYPTO_GCM_GHASH_MODE)) {
@@ -2835,16 +2839,16 @@ int intel_fcs_aes_crypt_update_finalize(uint32_t smc_fid, uint32_t trans_id,
 	status = ((smc_fid == ALTERA_SIP_SMC_ASYNC_FCS_AES_CRYPT_UPDATE) ||
 		  (smc_fid == ALTERA_SIP_SMC_ASYNC_FCS_AES_CRYPT_FINALIZE)) ?
 			mailbox_send_cmd_async_v3(GET_CLIENT_ID(trans_id),
-						   GET_JOB_ID(trans_id),
-						   MBOX_FCS_AES_CRYPT_REQ,
-						   fcs_aes_crypt_payload,
-						   i,
-						   MBOX_CMD_FLAG_INDIRECT,
-						   fcs_cs_aes_cb,
-						   NULL,
-						   0U) :
+						  GET_JOB_ID(trans_id),
+						  MBOX_FCS_AES_CRYPT_REQ,
+						  fcs_aes_crypt_payload,
+						  i,
+						  MBOX_CMD_FLAG_INDIRECT,
+						  fcs_cs_aes_cb,
+						  NULL,
+						  0U) :
 			mailbox_send_cmd_async(send_id, MBOX_FCS_AES_CRYPT_REQ,
-					fcs_aes_crypt_payload, i, CMD_INDIRECT);
+					       fcs_aes_crypt_payload, i, CMD_INDIRECT);
 
 
 	if (is_finalised != 0U) {
@@ -2871,14 +2875,6 @@ int intel_fcs_hkdf_request(uint32_t smc_fid, uint32_t trans_id,
 
 	if (!is_address_in_ddr_range(src_addr, FCS_HKDF_REQUEST_DATA_SIZE)) {
 		ERROR("MBOX: %s: source addr not in the DDR range\n", __func__);
-		return INTEL_SIP_SMC_STATUS_REJECTED;
-	}
-
-	/* Reject untrusted output key object size before any payload copy */
-	if ((op_key_size == 0U) ||
-	    (op_key_size > FCS_HKDF_KEY_OBJ_MAX_SIZE) ||
-	    ((op_key_size % sizeof(uint32_t)) != 0U)) {
-		ERROR("MBOX: %s: invalid op_key_size %u\n", __func__, op_key_size);
 		return INTEL_SIP_SMC_STATUS_REJECTED;
 	}
 
@@ -2917,27 +2913,21 @@ int intel_fcs_hkdf_request(uint32_t smc_fid, uint32_t trans_id,
 	/* Pointer to size of output key object */
 	inputdata = inputdata + FCS_HKDF_KEY_DATA_SIZE;
 
-	/* Confirm payload has room for the output key object */
-	if ((op_key_size / sizeof(uint32_t)) > (FCS_HKDF_REQUEST_DATA_SIZE - i)) {
-		ERROR("MBOX: %s: op_key_size %u too large\n", __func__, op_key_size);
-		return INTEL_SIP_SMC_STATUS_REJECTED;
-	}
-
 	/* Output Key object */
-	memcpy_s(&payload[i], FCS_HKDF_REQUEST_DATA_SIZE - i,
-		 (void *)inputdata, op_key_size / sizeof(uint32_t));
+	memcpy_s(&payload[i], op_key_size / sizeof(uint32_t), (void *)inputdata,
+		op_key_size / sizeof(uint32_t));
 
 	i += op_key_size / sizeof(uint32_t);
 
 	status = mailbox_send_cmd_async_v3(GET_CLIENT_ID(trans_id),
-					GET_JOB_ID(trans_id),
-					MBOX_FCS_HKDF_REQUEST,
-					payload,
-					i,
-					MBOX_CMD_FLAG_CASUAL,
-					fcs_hkdf_request_cb,
-					NULL,
-					0U);
+					   GET_JOB_ID(trans_id),
+					   MBOX_FCS_HKDF_REQUEST,
+					   payload,
+					   i,
+					   MBOX_CMD_FLAG_CASUAL,
+					   fcs_hkdf_request_cb,
+					   NULL,
+					   0U);
 
 	if (status < 0) {
 		ERROR("MBOX: %s: status %d\n", __func__, status);
