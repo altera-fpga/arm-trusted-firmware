@@ -22,7 +22,7 @@
 #include "agilex3_power_manager.h"
 #include "ccu/ncore_ccu.h"
 #include "socfpga_dt.h"
-#include "socfpga_mailbox.h"
+#include "mailbox/socfpga_mailbox_core.h"
 #include "socfpga_private.h"
 #include "socfpga_reset_manager.h"
 
@@ -160,6 +160,7 @@ gicv3_driver_data_t plat_gicv3_gic_data = {
 	.rdistif_base_addrs = rdistif_base_addrs,
 };
 
+
 /*******************************************************************************
  * Perform any BL3-1 platform setup code
  ******************************************************************************/
@@ -178,6 +179,7 @@ void bl31_platform_setup(void)
 	gicv3_rdistif_init(plat_my_core_pos());
 	gicv3_cpuif_enable(plat_my_core_pos());
 
+
 #if SIP_SVC_V3
 	/*
 	 * Re-initialize the mailbox to include V3 specific routines.
@@ -185,7 +187,14 @@ void bl31_platform_setup(void)
 	 * SPL has its own mailbox settings and this initialization will
 	 * override to those settings as required by the V3 framework.
 	 */
-	mailbox_init();
+	// Initialize SCSR backend
+	int status;
+
+	status = mailbox_core_init(MAILBOX_BACKEND_SCSR);
+	if (status != 0) {
+		ERROR("SCSR mailbox init failed: %d\n", status);
+	}
+	NOTICE("BL31: SCSR mailbox selected.\n");
 #endif
 
 	mailbox_hps_stage_notify(HPS_EXECUTION_STATE_SSBL);

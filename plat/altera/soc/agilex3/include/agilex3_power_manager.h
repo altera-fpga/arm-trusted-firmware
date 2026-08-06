@@ -8,6 +8,7 @@
 #ifndef POWERMANAGER_H
 #define POWERMANAGER_H
 
+
 #define AGX3_PWRMGR_BASE					0x10d14000
 
 /* DSU */

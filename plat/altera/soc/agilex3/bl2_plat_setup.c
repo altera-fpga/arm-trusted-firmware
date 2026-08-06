@@ -36,7 +36,7 @@
 #include "socfpga_emac.h"
 #include "socfpga_f2sdram_manager.h"
 #include "socfpga_handoff.h"
-#include "socfpga_mailbox.h"
+#include "mailbox/socfpga_mailbox_core.h"
 #include "socfpga_private.h"
 #include "socfpga_reset_manager.h"
 #include "socfpga_ros.h"
@@ -48,7 +48,7 @@
 static struct mmc_device_info mmc_info;
 
 /* Declare cadence idmac descriptor */
-extern struct cdns_idmac_desc cdns_desc[8] __aligned(8);
+extern struct cdns_idmac_desc cdns_desc[CONFIG_CDNS_DESC_COUNT] __aligned(8);
 
 const mmap_region_t agilex_plat_mmap[] = {
 	MAP_REGION_FLAT(DRAM_BASE, DRAM_SIZE,
@@ -124,7 +124,14 @@ void bl2_early_platform_setup2(u_register_t x0 __unused,
 	config_pwrmgr_handoff(&reverse_handoff_ptr);
 
 	/* Initialize the mailbox to enable communication between HPS and SDM */
-	mailbox_init();
+	int status;
+
+	status = mailbox_core_init(MAILBOX_BACKEND_SCSR);
+	if (status != 0) {
+		ERROR("SCSR mailbox init failed: %d\n", status);
+		panic();
+	}
+	NOTICE("BL2: SCSR mailbox selected.\n");
 
 	/* Perform a handshake with certain peripherals before issuing a reset */
 	config_hps_hs_before_warm_reset();
@@ -195,7 +202,7 @@ void bl2_plat_arch_setup(void)
 		break;
 
 	case BOOT_SOURCE_NAND:
-		NOTICE("SOCFPGA: SOCFPGA: NAND boot\n");
+		NOTICE("SOCFPGA: NAND boot\n");
 		nand_init();
 		socfpga_io_setup(boot_source, PLAT_NAND_DATA_BASE);
 		break;
