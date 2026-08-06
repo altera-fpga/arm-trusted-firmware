@@ -31,6 +31,7 @@
 #include "ccu/ncore_ccu.h"
 #include "combophy/combophy.h"
 #include "nand/nand.h"
+#include "xspi/cadence_xspi.h"
 #include "sdmmc/sdmmc.h"
 /* TODO: DTB not available */
 // #include "socfpga_dt.h"
@@ -186,6 +187,8 @@ void bl2_early_platform_setup2(u_register_t x0 __unused,
 
 void bl2_plat_arch_setup(void)
 {
+	static struct cdns_xspi xspi_device;
+	int xspi_ret;
 
 	struct cdns_sdmmc_params params = EMMC_INIT_PARAMS((uintptr_t)&cdns_desc,
 							   SDEMMC_SDCLK);
@@ -228,9 +231,15 @@ void bl2_plat_arch_setup(void)
 	 */
 	case BOOT_SOURCE_QSPI:
 	case BOOT_SOURCE_OSPI:
-		/* xSPI driver enabled in a later commit */
-		ERROR("SOCFPGA: xSPI boot not enabled in this commit\n");
-		panic();
+		NOTICE("SOCFPGA: xSPI boot\n");
+		xspi_ret = cdns_xspi_init(&xspi_device, CDNS_XSPI_OFFSET,
+					  CDNS_XSPI_SDMA_OFFSET, CDNS_XSPI_SDMA_SIZE,
+					  CDNS_XSPI_AUX_OFFSET);
+		if (xspi_ret != 0) {
+			ERROR("SOCFPGA: xSPI initialization failed with error %d\n", xspi_ret);
+		}
+		NOTICE("SOCFPGA: xSPI driver initialized successfully!\n");
+		socfpga_io_setup(boot_source, PLAT_XSPI_DATA_BASE);
 		break;
 
 	default:
