@@ -1060,41 +1060,21 @@ static uintptr_t smc_ret(void *handle, uint64_t *ret_args, uint32_t ret_args_len
 
 static inline bool is_gen_mbox_cmd_allowed(uint32_t cmd)
 {
-	/* Check if the command is allowed to be executed in generic mbox format */
-	bool is_cmd_allowed = false;
-
+	/*
+	 * Default-deny allowlist for ALTERA_SIP_SMC_ASYNC_GEN_MBOX_CMD.
+	 * Only explicitly reviewed, non-privileged status queries may pass;
+	 * unknown/future SDM commands stay blocked until security review.
+	 *
+	 * Note: SDM exposes firmware version via MBOX_CONFIG_STATUS (no
+	 * separate GET_FW_VERSION opcode in this tree).
+	 */
 	switch (cmd) {
-	case MBOX_FCS_OPEN_CS_SESSION:
-	case MBOX_FCS_CLOSE_CS_SESSION:
-	case MBOX_FCS_IMPORT_CS_KEY:
-	case MBOX_FCS_EXPORT_CS_KEY:
-	case MBOX_FCS_REMOVE_CS_KEY:
-	case MBOX_FCS_GET_CS_KEY_INFO:
-	case MBOX_FCS_CREATE_CS_KEY:
-	case MBOX_FCS_GET_DIGEST_REQ:
-	case MBOX_FCS_MAC_VERIFY_REQ:
-	case MBOX_FCS_ECDSA_HASH_SIGN_REQ:
-	case MBOX_FCS_GET_PROVISION:
-	case MBOX_FCS_CNTR_SET_PREAUTH:
-	case MBOX_FCS_ENCRYPT_REQ:
-	case MBOX_FCS_DECRYPT_REQ:
-	case MBOX_FCS_RANDOM_GEN:
-	case MBOX_FCS_AES_CRYPT_REQ:
-	case MBOX_FCS_ECDSA_SHA2_DATA_SIGN_REQ:
-	case MBOX_FCS_ECDSA_HASH_SIG_VERIFY:
-	case MBOX_FCS_ECDSA_SHA2_DATA_SIGN_VERIFY:
-	case MBOX_FCS_ECDSA_GET_PUBKEY:
-	case MBOX_FCS_ECDH_REQUEST:
-	case MBOX_FCS_HKDF_REQUEST:
-		/* These mailbox commands are not supported in the generic mailbox format. */
-		break;
+	case MBOX_CONFIG_STATUS:
+		return true;
 
 	default:
-		is_cmd_allowed = true;
-		break;
-	} /* switch */
-
-	return is_cmd_allowed;
+		return false;
+	}
 }
 
 /*
@@ -1458,6 +1438,11 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 				status = INTEL_SIP_SMC_STATUS_REJECTED;
 				SMC_RET1(handle, status);
 			}
+			if (!is_address_in_ddr_range(x3, cmd_payload_len * MBOX_WORD_BYTE)) {
+				ERROR("MBOX: 0x%x: Cmd payload not in DDR range\n", smc_fid);
+				status = INTEL_SIP_SMC_STATUS_REJECTED;
+				SMC_RET1(handle, status);
+			}
 		}
 
 		/* Make sure we have valid response payload length and buffer */
@@ -1466,6 +1451,11 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 			if (resp_payload_addr == NULL) {
 				ERROR("MBOX: 0x%x: Response payload address is NULL\n",
 					smc_fid);
+				status = INTEL_SIP_SMC_STATUS_REJECTED;
+				SMC_RET1(handle, status);
+			}
+			if (!is_address_in_ddr_range(x5, resp_payload_len * MBOX_WORD_BYTE)) {
+				ERROR("MBOX: 0x%x: Resp payload not in DDR range\n", smc_fid);
 				status = INTEL_SIP_SMC_STATUS_REJECTED;
 				SMC_RET1(handle, status);
 			}
