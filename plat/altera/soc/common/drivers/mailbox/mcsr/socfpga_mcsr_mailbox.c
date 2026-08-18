@@ -385,6 +385,7 @@ static int mcsr_mailbox_response_handler(void)
 			/* If there is payload, copy to client buffer or internal buffer */
 			if (mbox_svc.resp_queue[di].resp_len > 0U) {
 				uint32_t *read_buff;
+				uint32_t read_max_len;
 				sdm_command_t *cmd_desc =
 					mcsr_mailbox_get_cmd_desc(mbox_svc.resp_queue[di].client_id,
 								  mbox_svc.resp_queue[di].job_id,
@@ -392,11 +393,26 @@ static int mcsr_mailbox_response_handler(void)
 
 				if ((cmd_desc != NULL) && (cmd_desc->cb_args != NULL)) {
 					read_buff = cmd_desc->cb_args;
+					/*
+					 * Bound the copy length by the caller-declared
+					 * cb_args_len (in words) to prevent out-of-bounds
+					 * writes into the caller's buffer. cb_args_len == 0
+					 * is treated as "no caller-declared bound" and
+					 * falls back to resp_len for legacy paths that did
+					 * not propagate a length.
+					 */
+					read_max_len = mbox_svc.resp_queue[di].resp_len;
+					if ((cmd_desc->cb_args_len > 0U) &&
+					    (cmd_desc->cb_args_len < read_max_len)) {
+						read_max_len = cmd_desc->cb_args_len;
+					}
 				} else {
 					read_buff = (uint32_t *)mbox_svc.resp_queue[di].resp_data;
+					read_max_len = MBOX_SVC_MAX_RESP_DATA_SIZE;
 				}
 
-				for (i = 0; i < (int)mbox_svc.resp_queue[di].resp_len; i++) {
+				for (i = 0; (i < (int)mbox_svc.resp_queue[di].resp_len) &&
+				     (i < (int)read_max_len); i++) {
 					read_buff[i] = response_buffer[get_index].msg_data[i];
 				}
 			}
