@@ -1034,7 +1034,22 @@ static void scsr_mailbox_response_parser(void)
 						  NULL);
 		if (cmd_desc != NULL && cmd_desc->cb_args != NULL) {
 			read_buff = cmd_desc->cb_args;
-			read_max_len = mbox_resp_len;
+			/*
+			 * Bound the copy length by the caller-declared cb_args_len
+			 * (in words) to prevent out-of-bounds writes into the
+			 * caller's buffer.  cb_args_len == 0 is treated as
+			 * "no caller-declared bound" and falls back to mbox_resp_len
+			 * for legacy paths that did not propagate a length.
+			 */
+			if (cmd_desc->cb_args_len > 0U) {
+				if (cmd_desc->cb_args_len < (uint32_t)mbox_resp_len) {
+					read_max_len = (uint16_t)cmd_desc->cb_args_len;
+				} else {
+					read_max_len = mbox_resp_len;
+				}
+			} else {
+				read_max_len = mbox_resp_len;
+			}
 		} else {
 			read_buff = (uint32_t *)mbox_svc.resp_queue[mbox_svc.curr_di].resp_data;
 			read_max_len = MBOX_SVC_MAX_RESP_DATA_SIZE;
