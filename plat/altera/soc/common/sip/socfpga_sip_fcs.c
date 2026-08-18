@@ -2870,13 +2870,31 @@ int intel_fcs_hkdf_request(uint32_t smc_fid, uint32_t trans_id,
 {
 	int status;
 	uint32_t i = 0;
+	uint32_t op_key_words;
+	uint32_t src_span;
 	uintptr_t inputdata;
 	uint32_t payload[FCS_HKDF_REQUEST_DATA_SIZE] = {0U};
 
-	if (!is_address_in_ddr_range(src_addr, FCS_HKDF_REQUEST_DATA_SIZE)) {
+	/*
+	 * Reject untrusted output key object size before any payload copy.
+	 * socfpga_memcpy_s() only rejects ssize > dsize; using the same
+	 * attacker-controlled op_key_size for both would bypass that guard.
+	 */
+	if ((op_key_size == 0U) ||
+	    (op_key_size > FCS_HKDF_KEY_OBJ_MAX_SIZE) ||
+	    ((op_key_size % sizeof(uint32_t)) != 0U)) {
+		ERROR("MBOX: %s: invalid op_key_size %u\n", __func__, op_key_size);
+		return INTEL_SIP_SMC_STATUS_REJECTED;
+	}
+
+	/* Validate the full source span (fixed HKDF inputs + output key object). */
+	src_span = FCS_HKDF_KEY_DATA_SIZE + op_key_size;
+	if (!is_address_in_ddr_range(src_addr, src_span)) {
 		ERROR("MBOX: %s: source addr not in the DDR range\n", __func__);
 		return INTEL_SIP_SMC_STATUS_REJECTED;
 	}
+
+	op_key_words = op_key_size / sizeof(uint32_t);
 
 	/* Prepare command payload */
 
@@ -2901,8 +2919,15 @@ int intel_fcs_hkdf_request(uint32_t smc_fid, uint32_t trans_id,
 
 	/* Complete input data, 1st input data len + its data + 2nd input data len + its data. */
 	inputdata = src_addr;
-	memcpy_s((uint8_t *)&payload[i], FCS_HKDF_KEY_DATA_SIZE / sizeof(uint32_t),
-		(uint8_t *)inputdata, FCS_HKDF_KEY_DATA_SIZE / sizeof(uint32_t));
+	status = memcpy_s((uint8_t *)&payload[i],
+			  FCS_HKDF_KEY_DATA_SIZE / sizeof(uint32_t),
+			  (uint8_t *)inputdata,
+			  FCS_HKDF_KEY_DATA_SIZE / sizeof(uint32_t));
+	if (status != 0) {
+		ERROR("MBOX: %s: failed to copy HKDF input data (ret %d)\n",
+		      __func__, status);
+		return INTEL_SIP_SMC_STATUS_REJECTED;
+	}
 
 	i += FCS_HKDF_KEY_DATA_SIZE / sizeof(uint32_t);
 
@@ -2913,11 +2938,22 @@ int intel_fcs_hkdf_request(uint32_t smc_fid, uint32_t trans_id,
 	/* Pointer to size of output key object */
 	inputdata = inputdata + FCS_HKDF_KEY_DATA_SIZE;
 
-	/* Output Key object */
-	memcpy_s(&payload[i], op_key_size / sizeof(uint32_t), (void *)inputdata,
-		op_key_size / sizeof(uint32_t));
+	/* Confirm payload has room for the output key object */
+	if (op_key_words > (FCS_HKDF_REQUEST_DATA_SIZE - i)) {
+		ERROR("MBOX: %s: op_key_size %u too large\n", __func__, op_key_size);
+		return INTEL_SIP_SMC_STATUS_REJECTED;
+	}
 
-	i += op_key_size / sizeof(uint32_t);
+	/* Output Key object: dsize is real remaining payload[] capacity */
+	status = memcpy_s(&payload[i], FCS_HKDF_REQUEST_DATA_SIZE - i,
+			  (void *)inputdata, op_key_words);
+	if (status != 0) {
+		ERROR("MBOX: %s: failed to copy output key object (ret %d)\n",
+		      __func__, status);
+		return INTEL_SIP_SMC_STATUS_REJECTED;
+	}
+
+	i += op_key_words;
 
 	status = mailbox_send_cmd_async_v3(GET_CLIENT_ID(trans_id),
 					   GET_JOB_ID(trans_id),
