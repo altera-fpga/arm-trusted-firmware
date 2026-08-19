@@ -233,8 +233,16 @@ void socfpga_io_setup(int boot_source, unsigned long offset)
 	assert(result == 0);
 
 	if (boot_source == BOOT_SOURCE_SDMMC) {
+#if defined(AGILEX72_SIMICS_BYPASS) && (AGILEX72_SIMICS_BYPASS == 1)
+		/*
+		 * Direct-boot Simics creates an empty SD card and preloads
+		 * BL31/BL33 in DDR (IMAGE_ATTRIB_SKIP_LOADING). Skip GPT
+		 * parse so a missing a2 partition does not hang.
+		 */
+#else
 		partition_init(GPT_IMAGE_ID);
 		fip_spec.offset = get_partition_entry(a2)->start;
+#endif
 	}
 
 	(void)result;

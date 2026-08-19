@@ -194,7 +194,7 @@ void bl2_plat_arch_setup(void)
 							   SDEMMC_SDCLK);
 
 	params.sdmclk = clkmgr_get_rate(CLKMGR_SDMMC_CLK_ID);
-#if AGILEX72_SIMICS_BYPASS
+#if defined(AGILEX72_SIMICS_BYPASS) && (AGILEX72_SIMICS_BYPASS == 1)
 	/*
 	 * Simics km-hps-sdmmc does not model combo-PHY HRS04/HRS05 readback or
 	 * the SRS09 card-detect line. Advertise runtime quirks so the shared
@@ -237,6 +237,7 @@ void bl2_plat_arch_setup(void)
 					  CDNS_XSPI_AUX_OFFSET);
 		if (xspi_ret != 0) {
 			ERROR("SOCFPGA: xSPI initialization failed with error %d\n", xspi_ret);
+			panic();
 		}
 		NOTICE("SOCFPGA: xSPI driver initialized successfully!\n");
 		socfpga_io_setup(boot_source, PLAT_XSPI_DATA_BASE);

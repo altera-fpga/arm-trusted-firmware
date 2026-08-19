@@ -69,8 +69,15 @@ static bl_mem_params_node_t bl2_mem_params_descs[] = {
 		.ep_info.spsr = SPSR_64(MODE_EL3, MODE_SP_ELX,
 			DISABLE_ALL_EXCEPTIONS),
 
+#if defined(AGILEX72_SIMICS_BYPASS) && (AGILEX72_SIMICS_BYPASS == 1)
+		SET_STATIC_PARAM_HEAD(image_info, PARAM_EP,
+				      VERSION_2, image_info_t,
+				      IMAGE_ATTRIB_PLAT_SETUP |
+				      IMAGE_ATTRIB_SKIP_LOADING),
+#else
 		SET_STATIC_PARAM_HEAD(image_info, PARAM_EP,
 			VERSION_2, image_info_t, IMAGE_ATTRIB_PLAT_SETUP),
+#endif
 		.image_info.image_base = BL31_BASE,
 		.image_info.image_max_size = BL31_LIMIT - BL31_BASE,
 
@@ -84,8 +91,14 @@ static bl_mem_params_node_t bl2_mem_params_descs[] = {
 			VERSION_2, entry_point_info_t, NON_SECURE | EXECUTABLE),
 		.ep_info.pc = PLAT_NS_IMAGE_OFFSET,
 
+#if defined(AGILEX72_SIMICS_BYPASS) && (AGILEX72_SIMICS_BYPASS == 1)
+		SET_STATIC_PARAM_HEAD(image_info, PARAM_EP,
+				      VERSION_2, image_info_t,
+				      IMAGE_ATTRIB_SKIP_LOADING),
+#else
 		SET_STATIC_PARAM_HEAD(image_info, PARAM_EP,
 			VERSION_2, image_info_t, 0),
+#endif
 		.image_info.image_base = PLAT_NS_IMAGE_OFFSET,
 		.image_info.image_max_size =
 			0x0 + 0x40000000 - PLAT_NS_IMAGE_OFFSET,
