@@ -195,8 +195,24 @@ void socfpga_io_setup(int boot_source, unsigned long offset)
 	assert(result == 0);
 
 	if (boot_source == BOOT_SOURCE_SDMMC) {
+		const partition_entry_t *entry;
+		const partition_entry_list_t *plist;
+		unsigned int i;
+
 		partition_init(GPT_IMAGE_ID);
-		fip_spec.offset = get_partition_entry(a2)->start;
+		entry = get_partition_entry(a2);
+		if (entry == NULL) {
+			ERROR("SOCFPGA: FIP partition type 0xA2 not found on SD/MMC\n");
+			plist = get_partition_entry_list();
+			for (i = 0U; i < plist->entry_count; i++) {
+				ERROR("  part %u type=0x%02x start=0x%llx length=0x%llx\n",
+				      i, (unsigned char)plist->list[i].name[0],
+				      (unsigned long long)plist->list[i].start,
+				      (unsigned long long)plist->list[i].length);
+			}
+			panic();
+		}
+		fip_spec.offset = entry->start;
 	}
 
 	(void)result;
