@@ -671,6 +671,10 @@ static uint32_t intel_mbox_send_cmd(uint32_t cmd, uint32_t *args,
 		return INTEL_SIP_SMC_STATUS_REJECTED;
 	}
 
+	if (!is_address_in_ddr_range(response, resp_len * MBOX_WORD_BYTE)) {
+		return INTEL_SIP_SMC_STATUS_REJECTED;
+	}
+
 	int status = mailbox_send_cmd(MBOX_JOB_ID, cmd, args, len, urgent,
 					(uint32_t *) response, &resp_len);
 
@@ -682,7 +686,9 @@ static uint32_t intel_mbox_send_cmd(uint32_t cmd, uint32_t *args,
 	*mbox_status = 0;
 	*len_in_resp = resp_len;
 
-	flush_dcache_range(response, resp_len * MBOX_WORD_BYTE);
+	if ((response != 0U) && (resp_len > 0U)) {
+		flush_dcache_range(response, resp_len * MBOX_WORD_BYTE);
+	}
 
 	return INTEL_SIP_SMC_STATUS_OK;
 }
