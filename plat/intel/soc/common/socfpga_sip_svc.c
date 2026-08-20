@@ -875,6 +875,7 @@ uint8_t sip_smc_cmd_cb_ret3(void *resp_desc, void *cmd_desc, uint64_t *ret_args)
 uint8_t sip_smc_ret_nbytes_cb(void *resp_desc, void *cmd_desc, uint64_t *ret_args)
 {
 	uint8_t ret_args_len = 0U;
+	uint32_t flush_words;
 	sdm_response_t *resp = (sdm_response_t *)resp_desc;
 	sdm_command_t *cmd = (sdm_command_t *)cmd_desc;
 
@@ -885,8 +886,19 @@ uint8_t sip_smc_ret_nbytes_cb(void *resp_desc, void *cmd_desc, uint64_t *ret_arg
 	ret_args[ret_args_len++] = resp->err_code;
 	ret_args[ret_args_len++] = resp->rcvd_resp_len * MBOX_WORD_BYTE;
 
-	/* Flush the response data buffer. */
-	flush_dcache_range((uintptr_t)cmd->cb_args, resp->rcvd_resp_len * MBOX_WORD_BYTE);
+	/*
+	 * Flush only what was copied into the caller buffer. Cap to
+	 * cb_args_len so a confused/stale rcvd_resp_len cannot flush
+	 * past the validated destination.
+	 */
+	flush_words = resp->rcvd_resp_len;
+	if ((cmd->cb_args_len > 0U) && (flush_words > cmd->cb_args_len)) {
+		flush_words = cmd->cb_args_len;
+	}
+	if ((cmd->cb_args != NULL) && (flush_words > 0U)) {
+		flush_dcache_range((uintptr_t)cmd->cb_args,
+				   flush_words * MBOX_WORD_BYTE);
+	}
 
 	return ret_args_len;
 }
