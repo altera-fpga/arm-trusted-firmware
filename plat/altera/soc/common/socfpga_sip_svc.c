@@ -881,6 +881,7 @@ uint8_t sip_smc_cmd_cb_ret3(void *resp_desc, void *cmd_desc, uint64_t *ret_args)
 uint8_t sip_smc_ret_nbytes_cb(void *resp_desc, void *cmd_desc, uint64_t *ret_args)
 {
 	uint8_t ret_args_len = 0U;
+	uint32_t flush_words;
 	sdm_response_t *resp = (sdm_response_t *)resp_desc;
 	sdm_command_t *cmd = (sdm_command_t *)cmd_desc;
 
@@ -891,8 +892,19 @@ uint8_t sip_smc_ret_nbytes_cb(void *resp_desc, void *cmd_desc, uint64_t *ret_arg
 	ret_args[ret_args_len++] = resp->err_code;
 	ret_args[ret_args_len++] = resp->rcvd_resp_len * MBOX_WORD_BYTE;
 
-	/* Flush the response data buffer. */
-	flush_dcache_range((uintptr_t)cmd->cb_args, resp->rcvd_resp_len * MBOX_WORD_BYTE);
+	/*
+	 * Flush only what was copied into the caller buffer. Cap to
+	 * cb_args_len so a confused/stale rcvd_resp_len cannot flush
+	 * past the validated destination.
+	 */
+	flush_words = resp->rcvd_resp_len;
+	if ((cmd->cb_args_len > 0U) && (flush_words > cmd->cb_args_len)) {
+		flush_words = cmd->cb_args_len;
+	}
+	if ((cmd->cb_args != NULL) && (flush_words > 0U)) {
+		flush_dcache_range((uintptr_t)cmd->cb_args,
+				   flush_words * MBOX_WORD_BYTE);
+	}
 
 	return ret_args_len;
 }
@@ -1143,6 +1155,11 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 
 	case ALTERA_SIP_SMC_ASYNC_GET_DEVICE_IDENTITY:
 	{
+		if (!is_address_in_ddr_range(x2, MBOX_DATA_MAX_LEN * MBOX_WORD_BYTE)) {
+			ERROR("MBOX: 0x%x: Addr not in DDR range\n", smc_fid);
+			SMC_RET1(handle, INTEL_SIP_SMC_STATUS_REJECTED);
+		}
+
 		status = mailbox_send_cmd_async_v3(GET_CLIENT_ID(x1),
 						   GET_JOB_ID(x1),
 						   MBOX_CMD_GET_DEVICEID,
@@ -1151,7 +1168,7 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   (uint32_t *)x2,
-						   2);
+						   MBOX_DATA_MAX_LEN);
 
 		SMC_RET1(handle, status);
 	}
@@ -1265,8 +1282,16 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 	{
 		uint32_t *qspi_payload = (uint32_t *)x2;
 		uint32_t qspi_total_nwords = (((uint32_t)x3) / MBOX_WORD_BYTE);
-		uint32_t qspi_addr = qspi_payload[0];
-		uint32_t qspi_nwords = qspi_payload[1];
+		uint32_t qspi_addr;
+		uint32_t qspi_nwords;
+
+		if (!is_address_in_ddr_range(x2, x3)) {
+			ERROR("MBOX: 0x%x: Addr not in DDR range\n", smc_fid);
+			SMC_RET1(handle, INTEL_SIP_SMC_STATUS_REJECTED);
+		}
+
+		qspi_addr = qspi_payload[0];
+		qspi_nwords = qspi_payload[1];
 
 		if (!MBOX_IS_WORD_ALIGNED(qspi_addr)) {
 			ERROR("MBOX: 0x%x: Given address is not WORD aligned\n",
@@ -1307,6 +1332,11 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 			SMC_RET1(handle, status);
 		}
 
+		if (!is_address_in_ddr_range(x3, x4)) {
+			ERROR("MBOX: 0x%x: Addr not in DDR range\n", smc_fid);
+			SMC_RET1(handle, INTEL_SIP_SMC_STATUS_REJECTED);
+		}
+
 		uint32_t cmd_data[2] = {qspi_addr, qspi_nwords};
 
 		status = mailbox_send_cmd_async_v3(GET_CLIENT_ID(x1),
@@ -1317,7 +1347,7 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   (uint32_t *)x3,
-						   2);
+						   qspi_nwords);
 
 		SMC_RET1(handle, status);
 	}
@@ -1325,6 +1355,11 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 	case ALTERA_SIP_SMC_ASYNC_QSPI_GET_DEV_INFO:
 	{
 		uint32_t *dst_addr = (uint32_t *)x2;
+
+		if (!is_address_in_ddr_range(x2, MBOX_DATA_MAX_LEN * MBOX_WORD_BYTE)) {
+			ERROR("MBOX: 0x%x: Addr not in DDR range\n", smc_fid);
+			SMC_RET1(handle, INTEL_SIP_SMC_STATUS_REJECTED);
+		}
 
 		status = mailbox_send_cmd_async_v3(GET_CLIENT_ID(x1),
 						   GET_JOB_ID(x1),
@@ -1334,7 +1369,7 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   (uint32_t *)dst_addr,
-						   2);
+						   MBOX_DATA_MAX_LEN);
 
 		SMC_RET1(handle, status);
 	}
@@ -1490,6 +1525,12 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 			SMC_RET1(handle, status);
 		}
 
+		if (!is_address_in_ddr_range(ret_random_addr, random_len)) {
+			ERROR("MBOX: 0x%x: Addr not in DDR range\n", smc_fid);
+			status = INTEL_SIP_SMC_STATUS_REJECTED;
+			SMC_RET1(handle, status);
+		}
+
 		crypto_header = ((FCS_CS_FIELD_FLAG_INIT | FCS_CS_FIELD_FLAG_FINALIZE) <<
 				  FCS_CS_FIELD_FLAG_OFFSET);
 		fcs_rng_payload payload = {session_id, context_id,
@@ -1503,12 +1544,17 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   (uint32_t *)ret_random_addr,
-						   2);
+						   random_len / MBOX_WORD_BYTE);
 		SMC_RET1(handle, status);
 	}
 
 	case ALTERA_SIP_SMC_ASYNC_FCS_GET_PROVISION_DATA:
 	{
+		if (!is_address_in_ddr_range(x2, MBOX_DATA_MAX_LEN * MBOX_WORD_BYTE)) {
+			ERROR("MBOX: 0x%x: Addr not in DDR range\n", smc_fid);
+			SMC_RET1(handle, INTEL_SIP_SMC_STATUS_REJECTED);
+		}
+
 		status = mailbox_send_cmd_async_v3(GET_CLIENT_ID(x1),
 						   GET_JOB_ID(x1),
 						   MBOX_FCS_GET_PROVISION,
@@ -1517,7 +1563,7 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   (uint32_t *)x2,
-						   2);
+						   MBOX_DATA_MAX_LEN);
 		SMC_RET1(handle, status);
 	}
 
@@ -1681,7 +1727,7 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   (uint32_t *)ret_key_addr,
-						   2);
+						   key_len / MBOX_WORD_BYTE);
 		SMC_RET1(handle, status);
 	}
 
@@ -1729,7 +1775,7 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   (uint32_t *)ret_key_addr,
-						   2);
+						   key_len / MBOX_WORD_BYTE);
 		SMC_RET1(handle, status);
 	}
 
@@ -1902,6 +1948,12 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 		uint32_t src_size = (uint32_t)x3;
 		uint32_t *dst_addr = (uint32_t *)x4;
 
+		if (!is_address_in_ddr_range(x2, src_size) ||
+		    !is_address_in_ddr_range(x4, MBOX_DATA_MAX_LEN * MBOX_WORD_BYTE)) {
+			ERROR("MBOX: 0x%x: Addr not in DDR range\n", smc_fid);
+			SMC_RET1(handle, INTEL_SIP_SMC_STATUS_REJECTED);
+		}
+
 		status = mailbox_send_cmd_async_v3(GET_CLIENT_ID(x1),
 						   GET_JOB_ID(x1),
 						   MBOX_CMD_MCTP_MSG,
@@ -1910,7 +1962,7 @@ static uintptr_t sip_smc_handler_v3(uint32_t smc_fid,
 						   MBOX_CMD_FLAG_CASUAL,
 						   sip_smc_ret_nbytes_cb,
 						   dst_addr,
-						   2);
+						   MBOX_DATA_MAX_LEN);
 
 		SMC_RET1(handle, status);
 	}
