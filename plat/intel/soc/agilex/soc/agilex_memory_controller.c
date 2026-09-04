@@ -354,16 +354,21 @@ void configure_hmc_adaptor_regs(void)
 	data = mmio_read_32(AGX_MPFE_IOHMC_DRAMADDRW);
 	mmio_write_32(AGX_MPFE_HMC_ADP(ADP_DRAMADDRWIDTH), data);
 
-	/* Enable nonsecure access to DDR */
+	/* Enable non-secure DDR access for MPU and Non-MPU (e.g. EMAC DMA). */
 	data = get_physical_dram_size();
 
 	if (data < AGX_DDR_SIZE)
 		data = AGX_DDR_SIZE;
 
+	mmio_write_32(AGX_NOC_FW_DDR_SCR_MPUREGION0ADDR_BASE, 0);
+	mmio_write_32(AGX_NOC_FW_DDR_SCR_MPUREGION0ADDR_BASEEXT, 0);
 	mmio_write_32(AGX_NOC_FW_DDR_SCR_MPUREGION0ADDR_LIMIT, data - 1);
 	mmio_write_32(AGX_NOC_FW_DDR_SCR_MPUREGION0ADDR_LIMITEXT, 0x1f);
 
+	mmio_write_32(AGX_NOC_FW_DDR_SCR_NONMPUREGION0ADDR_BASE, 0);
+	mmio_write_32(AGX_NOC_FW_DDR_SCR_NONMPUREGION0ADDR_BASEEXT, 0);
 	mmio_write_32(AGX_NOC_FW_DDR_SCR_NONMPUREGION0ADDR_LIMIT, data - 1);
+	mmio_write_32(AGX_NOC_FW_DDR_SCR_NONMPUREGION0ADDR_LIMITEXT, 0x1f);
 
 	mmio_write_32(AGX_SOC_NOC_FW_DDR_SCR_ENABLESET, BIT(0) | BIT(8));
 
