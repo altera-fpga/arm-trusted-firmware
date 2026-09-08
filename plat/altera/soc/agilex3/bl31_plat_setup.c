@@ -25,6 +25,7 @@
 #include "mailbox/socfpga_mailbox_core.h"
 #include "socfpga_private.h"
 #include "socfpga_reset_manager.h"
+#include "socfpga_sip_svc.h"
 
 /* Get non-secure SPSR for BL33. Zephyr and Linux */
 uint32_t arm_get_spsr_for_bl33_entry(void);
@@ -188,12 +189,38 @@ static void agilex3_enable_ns_group1_sgi_for_bl33(void)
 	}
 }
 
+/*
+ * Bound non-secure DDR by the limit BL2 programmed into the DDR firewall. On
+ * an inline ECC configuration that limit already excludes the ECC reservation,
+ * which keeps SMC callers from handing ATF a buffer inside the ECC store.
+ */
+static void agilex3_bound_ns_ddr(void)
+{
+	uint64_t limit;
+	uint32_t lo, hi;
+
+	lo = mmio_read_32(SOCFPGA_FW_DDR_CCU_DMI0_ADDRESS +
+			  FW_MPU_DDR_SCR_MPUREGION0ADDR_LIMIT);
+	hi = mmio_read_32(SOCFPGA_FW_DDR_CCU_DMI0_ADDRESS +
+			  FW_MPU_DDR_SCR_MPUREGION0ADDR_LIMITEXT) &
+			  FW_MPU_DDR_SCR_MPUREGION0ADDR_LIMITEXT_FIELD;
+
+	limit = ((uint64_t)hi << 32) | (uint64_t)lo;
+
+	/* The firewall limit is inclusive; leave the default if unprogrammed. */
+	if (limit > (uint64_t)DRAM_BASE) {
+		socfpga_set_ns_ddr_end(limit + 1ULL);
+	}
+}
+
 /*******************************************************************************
  * Perform any BL3-1 platform setup code
  ******************************************************************************/
 void bl31_platform_setup(void)
 {
 	socfpga_delay_timer_init();
+
+	agilex3_bound_ns_ddr();
 
 	/* TODO: DTB not available */
 	// socfpga_dt_populate_gicv3_config(SOCFPGA_DTB_BASE, &plat_gicv3_gic_data);

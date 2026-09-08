@@ -223,6 +223,7 @@ typedef enum {
 
 /* Function Definitions */
 bool is_address_in_ddr_range(uint64_t addr, uint64_t size);
+void socfpga_set_ns_ddr_end(uint64_t end);
 
 /* ECC DBE */
 bool cold_reset_for_ecc_dbe(void);

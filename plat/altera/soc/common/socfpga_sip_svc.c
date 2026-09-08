@@ -308,9 +308,24 @@ static bool is_fpga_config_buffer_full(void)
 	return true;
 }
 
+/*
+ * Exclusive end of non-secure DDR. Zero means the platform has not narrowed
+ * it, in which case the whole DRAM window is allowed.
+ */
+static uint64_t ns_ddr_end;
+
+void socfpga_set_ns_ddr_end(uint64_t end)
+{
+	uint64_t dram_window_end = (uint64_t)DRAM_BASE + (uint64_t)DRAM_SIZE;
+
+	/* A stale or bogus limit must never widen the window. */
+	ns_ddr_end = (end > dram_window_end) ? dram_window_end : end;
+}
+
 bool is_address_in_ddr_range(uint64_t addr, uint64_t size)
 {
-	uint128_t dram_max_sz = (uint128_t)DRAM_BASE + (uint128_t)DRAM_SIZE;
+	uint128_t dram_max_sz = (ns_ddr_end != 0ULL) ? (uint128_t)ns_ddr_end :
+			((uint128_t)DRAM_BASE + (uint128_t)DRAM_SIZE);
 	uint128_t dram_region_end = (uint128_t)addr + (uint128_t)size;
 
 	if (!addr && !size) {

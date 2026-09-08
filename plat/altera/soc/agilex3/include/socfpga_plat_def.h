@@ -88,6 +88,18 @@
 #define SOCFPGA_CCU_NOC_REG_BASE				0x1c000000
 #define SOCFPGA_F2SDRAMMGR_REG_BASE				0x18001000
 
+/*
+ * DDR firewall. BL2 programs the non-secure MPU region limit from the
+ * IOSSM-reported size once the inline ECC reservation has been taken out, so
+ * BL31 reads the same registers back to learn where non-secure DDR ends.
+ */
+#define SOCFPGA_FW_DDR_CCU_DMI0_ADDRESS				0x18000800
+#define SOCFPGA_FW_DDR_CCU_DMI1_ADDRESS				0x18000A00
+#define SOCFPGA_FW_TBU2NOC_ADDRESS				0x18000C00
+#define FW_MPU_DDR_SCR_MPUREGION0ADDR_LIMIT			0x18
+#define FW_MPU_DDR_SCR_MPUREGION0ADDR_LIMITEXT			0x1c
+#define FW_MPU_DDR_SCR_MPUREGION0ADDR_LIMITEXT_FIELD		0xff
+
 #define SOCFPGA_MMC_REG_BASE					0x10808000
 #define SOCFPGA_MEMCTRL_REG_BASE				0x108CC000
 #define SOCFPGA_RSTMGR_REG_BASE					0x10d11000
@@ -135,8 +147,15 @@
 /*******************************************************************************
  * Platform memory map related constants
  ******************************************************************************/
+/*
+ * DRAM_SIZE is the DDR address window, not the usable DDR size, so it must
+ * span the whole window the DDR firewall can open to non-secure masters.
+ * Do not subtract the inline ECC reservation here: the usable size is only
+ * known at runtime, and is_address_in_ddr_range() takes its real ceiling from
+ * the firewall limit instead.
+ */
 #define DRAM_BASE						(0x80000000)
-#define DRAM_SIZE						(0x70000000)
+#define DRAM_SIZE						(0x80000000)
 #define DDR_HW_SIZE						(0x40000000)
 
 #define OCRAM_BASE						(0x00000000)
