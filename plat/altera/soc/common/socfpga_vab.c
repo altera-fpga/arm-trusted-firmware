@@ -1,13 +1,14 @@
 /*
  * Copyright (c) 2019, ARM Limited and Contributors. All rights reserved.
  * Copyright (c) 2019-2023, Intel Corporation. All rights reserved.
- * Copyright (c) 2024-2025, Altera Corporation. All rights reserved.
+ * Copyright (c) 2024-2026, Altera Corporation. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include <assert.h>
 #include <errno.h>
+#include <stdbool.h>
 
 #include "../lib/sha/sha.h"
 
@@ -25,6 +26,61 @@
 #include "mailbox/socfpga_mailbox.h"
 #include "socfpga_private.h"
 #include "socfpga_vab.h"
+
+/*
+ * mailbox_send_cmd() returns -MBOX_RESP_ERR(code). See socfpga_mailbox.c.
+ *
+ * GET_PROV_DATA (0x7B) Secure State / hash-count live in payload dword 2
+ * (Mailbox_Command_and_Response). Fail closed unless that field, a 0x85
+ * reject, or a vacant first key slot shows the device is unowned.
+ */
+static bool is_vab_device_unowned(void)
+{
+	uint32_t data[FCS_PROV_DATA_WORD_SIZE];
+	unsigned int got = FCS_PROV_DATA_WORD_SIZE;
+	uint32_t field;
+	size_t slot;
+	int err;
+
+	zeromem(data, sizeof(data));
+
+	err = mailbox_send_cmd(MBOX_JOB_ID, MBOX_FCS_GET_PROVISION, NULL, 0U,
+			       0U, data, &got);
+	if (err == -MBOX_RESP_ERR(0x85)) {
+		return true;
+	}
+	if ((err != 0) || (got < 3U)) {
+		return false;
+	}
+
+	field = data[2];
+	switch (field & 0xFFU) {
+	case 0U:
+		return true;
+	case 1U:
+		slot = 32U;
+		break;
+	case 2U:
+		slot = FCS_SHA384_BYTE_SIZE;
+		break;
+	default:
+		return false;
+	}
+
+	if (((field >> 8) & 0xFFU) == 0xFFU) {
+		return true;
+	}
+	if ((got * sizeof(uint32_t)) < (3U * sizeof(uint32_t) + slot)) {
+		return false;
+	}
+
+	{
+		uint8_t vacant[FCS_SHA384_BYTE_SIZE];
+
+		zeromem(vacant, sizeof(vacant));
+		return memcmp(&data[3], vacant, slot) == 0;
+	}
+}
 
 size_t get_img_size(uint8_t *img_buf, size_t img_buf_sz)
 {
@@ -175,14 +231,18 @@ int socfpga_vab_authentication(void **p_image, size_t *p_size)
 
 	if (ret != 0) {
 		/*
-		 * Unsupported mailbox command or device not in the
-		 * owned/secure state
+		 * 0x85 is a generic SDM security denial, not proof the
+		 * device is unowned. Skip SDM VAB only after GET_PROVISION
+		 * confirms an unowned device. Fail closed otherwise.
 		 */
-		 /* 0x85 = Not allowed under current security setting */
-		if (ret == MBOX_RESP_ERR(0x85)) {
-			/* SDM bypass authentication */
-			ERROR("Image Authentication bypassed at address\n");
-			return 0;
+		if (ret == -MBOX_RESP_ERR(0x85)) {
+			if (is_vab_device_unowned()) {
+				ERROR("SDM VAB skipped (unowned) at 0x%lx (%zu bytes)\n",
+				      img_addr, img_sz);
+				return 0;
+			}
+			ERROR("VAB not allowed under security settings\n");
+			return -EAUTH;
 		}
 		ERROR("VAB certificate authentication failed in SDM\n");
 		/* 0x1FF = The device is busy */
