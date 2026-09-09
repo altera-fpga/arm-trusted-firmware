@@ -1315,6 +1315,7 @@ struct mailbox_backend scsr_backend = {
 	.free_cmd_desc = scsr_mailbox_free_cmd_desc,
 	.free_resp_desc = scsr_mailbox_free_resp_desc,
 	.read_response_v3 = scsr_mailbox_read_response_v3,
+	.send_async_v3 = scsr_mailbox_send_cmd_async_v3,
 	.send_cmd_async_v3 = scsr_mailbox_send_cmd_async_v3,
 	.poll_response_v3 = scsr_mailbox_poll_response_v3,
 	.response_parser = scsr_mailbox_response_parser,
