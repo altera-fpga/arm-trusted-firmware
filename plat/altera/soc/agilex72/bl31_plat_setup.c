@@ -189,10 +189,9 @@ void bl31_platform_setup(void)
 	gicv3_rdistif_init(plat_my_core_pos());
 	gicv3_cpuif_enable(plat_my_core_pos());
 
-#if SIP_SVC_V3
 	/*
-	 * Re-initialize the mailbox to include V3 specific routines.
-	 * In V3, this re-initialize is required because prior to BL31, U-Boot
+	 * Re-initialize the mailbox after U-Boot stage.
+	 * This re-initialize is required because prior to BL31, U-Boot
 	 * SPL has its own mailbox settings and this initialization will
 	 * override to those settings as required by the V3 framework.
 	 */
@@ -202,7 +201,6 @@ void bl31_platform_setup(void)
 	if (status != 0) {
 		ERROR("MCSR mailbox init failed: %d\n", status);
 	}
-#endif
 
 	mailbox_hps_stage_notify(HPS_EXECUTION_STATE_SSBL);
 }

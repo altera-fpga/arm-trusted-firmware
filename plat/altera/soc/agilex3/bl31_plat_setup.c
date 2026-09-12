@@ -243,10 +243,9 @@ void bl31_platform_setup(void)
 
 
 
-#if SIP_SVC_V3
 	/*
-	 * Re-initialize the mailbox to include V3 specific routines.
-	 * In V3, this re-initialize is required because prior to BL31, U-Boot
+	 * Re-initialize the mailbox after U-Boot stage.
+	 * This re-initialize is required because prior to BL31, U-Boot
 	 * SPL has its own mailbox settings and this initialization will
 	 * override to those settings as required by the V3 framework.
 	 */
@@ -258,7 +257,6 @@ void bl31_platform_setup(void)
 		ERROR("SCSR mailbox init failed: %d\n", status);
 	}
 	NOTICE("BL31: SCSR mailbox selected.\n");
-#endif
 
 	mailbox_hps_stage_notify(HPS_EXECUTION_STATE_SSBL);
 }

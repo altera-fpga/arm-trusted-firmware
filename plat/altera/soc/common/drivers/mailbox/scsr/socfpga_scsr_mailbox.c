@@ -25,6 +25,11 @@
 #include "mailbox/socfpga_mailbox_core.h"
 #include "socfpga_scsr_mailbox.h"
 
+static void scsr_mailbox_set_int(uint32_t interrupt);
+int scsr_iterate_resp(uint32_t mbox_resp_len, uint32_t *resp_buf,
+		      unsigned int *resp_len);
+
+#if SOCFPGA_SIP_SVC_V3
 /* Function prototypes */
 void scsr_mailbox_init_v3(void);
 static int scsr_mailbox_response_handler_fsm(void);
@@ -35,23 +40,13 @@ static sdm_command_t *scsr_mailbox_get_cmd_desc(uint8_t client_id, uint8_t job_i
 						bool ignore_job_id);
 static inline void scsr_mailbox_free_resp_desc(uint8_t index);
 static sdm_command_t *scsr_mailbox_get_free_cmd_desc(void);
-static sdm_response_t *scsr_mailbox_get_resp_desc_cid(uint8_t client_id,
-						      uint8_t *index);
-static int scsr_mailbox_read_response_v3(uint8_t client_id, uint8_t *job_id,
-					 uint32_t *header, uint32_t *resp,
-					 uint32_t *resp_len,
-					 uint8_t ignore_client_id);
-static int scsr_mailbox_poll_response_v3(uint8_t client_id, uint8_t job_id,
-					 uint32_t *resp, unsigned int *resp_len,
-					 uint32_t urgent);
-static void scsr_mailbox_set_int(uint32_t interrupt);
 
-static spinlock_t mbox_db_lock;		/* Mailbox service data base lock */
 static spinlock_t mbox_write_lock;	/* Hardware mailbox FIFO write lock */
+static spinlock_t mbox_db_lock;		/* Mailbox service data base lock */
 static spinlock_t mbox_read_lock;	/* Hardware mailbox FIFO read lock */
 
 static mailbox_service_t mbox_svc;	/* Mailbox service data base */
-static uint8_t async_v1_job_id;
+#endif /* SOCFPGA_SIP_SVC_V3 */
 
 static mailbox_payload_t mailbox_resp_payload;
 static mailbox_container_t mailbox_resp_ctr = {0, 0, &mailbox_resp_payload};
@@ -140,7 +135,7 @@ static int scsr_fill_mailbox_circular_buffer(uint32_t header_cmd, uint32_t *args
 	int ret;
 	bool is_doorbell_triggered = false;
 
-#if SIP_SVC_V3
+#if SOCFPGA_SIP_SVC_V3
 	spin_lock(&mbox_write_lock);
 #endif
 
@@ -167,7 +162,7 @@ static int scsr_fill_mailbox_circular_buffer(uint32_t header_cmd, uint32_t *args
 
 	mmio_write_32(MBOX_OFFSET + MBOX_DOORBELL_TO_SDM, 1U);
 
-#if SIP_SVC_V3
+#if SOCFPGA_SIP_SVC_V3
 	spin_unlock(&mbox_write_lock);
 #endif
 	return MBOX_RET_OK;
@@ -186,21 +181,15 @@ restart_mailbox:
 		}
 	}
 
-#if SIP_SVC_V3
+#if SOCFPGA_SIP_SVC_V3
 	spin_unlock(&mbox_write_lock);
 #endif
 	return MBOX_TIMEOUT;
 }
 
-int scsr_mailbox_read_response(unsigned int *job_id, uint32_t *response,
+int scsr_mailbox_read_response(uint32_t *job_id, uint32_t *response,
 			       unsigned int *resp_len)
 {
-#if SIP_SVC_V3
-	return scsr_mailbox_read_response_v3(MBOX_ATF_CLIENT_ID,
-					(uint8_t *)job_id, NULL,
-					response, resp_len,
-					0);
-#else
 	uint32_t rin;
 	uint32_t rout;
 	uint32_t resp_data;
@@ -241,21 +230,12 @@ int scsr_mailbox_read_response(unsigned int *job_id, uint32_t *response,
 	}
 
 	return MBOX_NO_RESPONSE;
-#endif
 }
 
-int scsr_mailbox_read_response_async(unsigned int *job_id, uint32_t *header,
+int scsr_mailbox_read_response_async(uint32_t *job_id, uint32_t *header,
 				     uint32_t *response, unsigned int *resp_len,
 				     uint8_t ignore_client_id)
 {
-#if SIP_SVC_V3
-	/* Just to avoid the build warning */
-	(void)mailbox_resp_ctr;
-	return scsr_mailbox_read_response_v3(MBOX_ATF_CLIENT_ID,
-					(uint8_t *)job_id, header,
-					response, resp_len,
-					ignore_client_id);
-#else
 	uint32_t rin;
 	uint32_t rout;
 	uint32_t resp_data;
@@ -345,16 +325,11 @@ int scsr_mailbox_read_response_async(unsigned int *job_id, uint32_t *header,
 
 	*resp_len = 0;
 	return (mailbox_resp_ctr.flag & MBOX_PAYLOAD_FLAG_BUSY) ? MBOX_BUSY : MBOX_NO_RESPONSE;
-#endif
 }
 
 int scsr_mailbox_poll_response(uint32_t job_id, uint32_t urgent, uint32_t *response,
 			       unsigned int *resp_len)
 {
-#if SIP_SVC_V3
-	return scsr_mailbox_poll_response_v3(MBOX_ATF_CLIENT_ID, (uint8_t)job_id,
-					response, resp_len, urgent);
-#else
 	unsigned int timeout = 40U;
 	unsigned int sdm_loop = 255U;
 	unsigned int ret_resp_len;
@@ -434,7 +409,6 @@ int scsr_mailbox_poll_response(uint32_t job_id, uint32_t urgent, uint32_t *respo
 
 	INFO("Timed out waiting for SDM\n");
 	return MBOX_TIMEOUT;
-#endif
 }
 
 int scsr_iterate_resp(uint32_t mbox_resp_len, uint32_t *resp_buf,
@@ -501,9 +475,6 @@ int scsr_mailbox_send_cmd_async(uint32_t *job_id, uint32_t cmd, uint32_t *args,
 		return status;
 	}
 
-#if SIP_SVC_V3
-	async_v1_job_id = (uint8_t)*job_id;
-#endif
 	*job_id = (*job_id + 1U) % MBOX_MAX_IND_JOB_ID;
 
 	return MBOX_RET_OK;
@@ -550,27 +521,7 @@ static void scsr_mailbox_set_int(uint32_t interrupt)
 		      MBOX_UAE_BIT(interrupt));
 }
 
-static int scsr_mailbox_fill_cmd_desc(uint8_t client_id, uint8_t job_id,
-				      uint32_t *resp_buff)
-{
-	sdm_command_t *cmd_desc = NULL;
-
-	/* Get a free command descriptor */
-	cmd_desc = scsr_mailbox_get_free_cmd_desc();
-	if (cmd_desc == NULL) {
-		return MBOX_BUFFER_FULL;
-	}
-
-	/* Record all the given values for the command. */
-	cmd_desc->client_id = client_id;
-	cmd_desc->job_id = job_id;
-	cmd_desc->cb = NULL;
-	cmd_desc->cb_args = resp_buff;
-	cmd_desc->cb_args_len = 0U;
-
-	return MBOX_RET_OK;
-}
-
+#if SOCFPGA_SIP_SVC_V3
 /* Returns the command descriptor based on the client and job ID. */
 static sdm_command_t *scsr_mailbox_get_cmd_desc(uint8_t client_id, uint8_t job_id,
 						bool ignore_job_id)
@@ -591,38 +542,6 @@ static sdm_command_t *scsr_mailbox_get_cmd_desc(uint8_t client_id, uint8_t job_i
 
 	return NULL;
 }
-
-/* Returns the response descriptor based on only client ID. */
-static sdm_response_t *scsr_mailbox_get_resp_desc_cid(uint8_t client_id, uint8_t *index)
-{
-	spin_lock(&mbox_db_lock);
-
-	for (uint32_t count = 0; count < MBOX_SVC_RESP_QUEUE_SIZE; count++) {
-		if ((mbox_svc.resp_queue[count].client_id == client_id) &&
-		    (mbox_svc.resp_queue[count].flags & FLAG_SDM_RESPONSE_IS_VALID)) {
-			*index = count;
-			/*
-			 * Once we get the valid response descriptor, get the
-			 * job ID and mark up the bitmaps.
-			 */
-			uint8_t job_id = mbox_svc.resp_queue[count].job_id;
-			uint8_t transaction_id = MBOX_GET_TRANS_ID(client_id, job_id);
-
-			mbox_svc.received_bitmap[transaction_id / MBOX_TID_BITMAP_SIZE] &=
-				~(1ULL << (transaction_id % MBOX_TID_BITMAP_SIZE));
-			mbox_svc.interrupt_bitmap[transaction_id / MBOX_TID_BITMAP_SIZE] &=
-				~(1ULL << (transaction_id % MBOX_TID_BITMAP_SIZE));
-			spin_unlock(&mbox_db_lock);
-			return &(mbox_svc.resp_queue[count]);
-		}
-	}
-
-	spin_unlock(&mbox_db_lock);
-	VERBOSE("MBOX: Response descriptor not found for cid %d\n", client_id);
-
-	return NULL;
-}
-
 /* Returns the response descriptor based on the client and job ID. */
 static sdm_response_t *scsr_mailbox_get_resp_desc(uint8_t client_id, uint8_t job_id, uint8_t *index)
 {
@@ -733,77 +652,6 @@ static inline void scsr_mailbox_free_resp_desc(uint8_t index)
 	memset((void *)&mbox_svc.resp_queue[index], 0, sizeof(sdm_response_t));
 	spin_unlock(&mbox_db_lock);
 }
-
-/*
- * This function serves the V1 _sync_read and _async_read functionality, and it
- * is introduced as part of V3 framework to keep backward compatible with V1
- * clients.
- */
-static int scsr_mailbox_read_response_v3(uint8_t client_id, uint8_t *job_id,
-					 uint32_t *header, uint32_t *resp,
-					 uint32_t *resp_len,
-					 uint8_t ignore_client_id)
-{
-	uint8_t di = 0U;
-	int status = MBOX_RET_OK;
-	sdm_response_t *resp_desc = NULL;
-	sdm_command_t *cmd_desc = NULL;
-
-	/*
-	 * In the V1, the client ID is always MBOX_ATF_CLIENT_ID and in this
-	 * routine we will collect the response which only belongs to this
-	 * client ID. So safe to ignore this input.
-	 */
-	(void)ignore_client_id;
-
-	/* Clear the SDM doorbell interrupt */
-	if (mmio_read_32(MBOX_OFFSET + MBOX_DOORBELL_FROM_SDM) == 1U)
-		mmio_write_32(MBOX_OFFSET + MBOX_DOORBELL_FROM_SDM, 0U);
-
-	/* Fill the command descriptor index and get the same */
-	status = scsr_mailbox_fill_cmd_desc(client_id, async_v1_job_id, resp);
-	if (status != MBOX_RET_OK) {
-		return status;
-	}
-
-	cmd_desc = scsr_mailbox_get_cmd_desc(client_id, async_v1_job_id, NULL);
-
-	/* Get the response from SDM, just go through one cycle */
-	status = scsr_mailbox_response_handler_fsm();
-	if (status != MBOX_RET_OK) {
-		scsr_mailbox_free_cmd_desc(cmd_desc);
-		*resp_len = 0U;
-		return status;
-	}
-
-	/* Check the local response queue with the given client ID */
-	resp_desc = scsr_mailbox_get_resp_desc_cid(client_id, &di);
-	if (resp_desc == NULL) {
-		scsr_mailbox_free_cmd_desc(cmd_desc);
-		*resp_len = 0U;
-		return MBOX_NO_RESPONSE;
-	}
-
-	/* Update the received mailbox response length, job ID and header */
-	*job_id = resp_desc->job_id;
-	*resp_len = resp_desc->rcvd_resp_len;
-	if (header != NULL) {
-		*header = resp_desc->header;
-	}
-
-	/* Check the mailbox response error code */
-	if (MBOX_RESP_ERR(resp_desc->header) > 0U) {
-		INFO("MBOX: Error in async response: %x\n", resp_desc->header);
-		status = -MBOX_RESP_ERR(resp_desc->header);
-	}
-
-	/* Free up the response and command descriptors */
-	scsr_mailbox_free_resp_desc(di);
-	scsr_mailbox_free_cmd_desc(cmd_desc);
-
-	return status;
-}
-
 int scsr_mailbox_send_cmd_async_v3(uint8_t client_id, uint8_t job_id, uint32_t cmd,
 				   uint32_t *args, uint32_t args_len, uint8_t cmd_flag,
 				   sdm_command_callback cb, uint32_t *cb_args,
@@ -848,94 +696,6 @@ int scsr_mailbox_send_cmd_async_v3(uint8_t client_id, uint8_t job_id, uint32_t c
 	INFO("MBOX: %s: status: %d\n", __func__, status);
 
 	return status;
-}
-
-static int scsr_mailbox_poll_response_v3(uint8_t client_id, uint8_t job_id,
-					 uint32_t *resp, unsigned int *resp_len,
-					 uint32_t urgent)
-{
-	unsigned int timeout = 40U;
-	unsigned int sdm_loop = 255U;
-	bool is_cmd_desc_fill = false;
-	uint8_t di = 0U;
-	sdm_response_t *resp_desc = NULL;
-	sdm_command_t *cmd_desc = NULL;
-
-	while (sdm_loop != 0U) {
-		do {
-			if (mmio_read_32(MBOX_OFFSET + MBOX_DOORBELL_FROM_SDM)
-				== 1U) {
-				break;
-			}
-			mdelay(10U);
-		} while (--timeout != 0U);
-
-		if (timeout == 0U) {
-			INFO("%s: Timed out waiting for SDM intr\n", __func__);
-			break;
-		}
-
-		mmio_write_32(MBOX_OFFSET + MBOX_DOORBELL_FROM_SDM, 0U);
-
-		if ((urgent & 1U) != 0U) {
-			mdelay(5U);
-			if ((mmio_read_32(MBOX_OFFSET + MBOX_STATUS) &
-				MBOX_STATUS_UA_MASK) ^
-				(urgent & MBOX_STATUS_UA_MASK)) {
-				mmio_write_32(MBOX_OFFSET + MBOX_URG, 0U);
-				return MBOX_RET_OK;
-			}
-
-			mmio_write_32(MBOX_OFFSET + MBOX_URG, 0U);
-			ERROR("MBOX: Mailbox did not get UA");
-			return MBOX_RET_ERROR;
-		}
-
-		/* Fill the command descriptor index and get the same. */
-		if (!is_cmd_desc_fill) {
-			if (scsr_mailbox_fill_cmd_desc(client_id, job_id, resp) !=
-				MBOX_RET_OK) {
-				return MBOX_BUFFER_FULL;
-			}
-
-			cmd_desc = scsr_mailbox_get_cmd_desc(client_id, job_id, NULL);
-			is_cmd_desc_fill = true;
-		}
-
-		/* Since it is sync call, will try to read till it time out */
-		(void)scsr_mailbox_response_handler_fsm();
-
-		/* Check the response queue with the given client ID and job ID */
-		resp_desc = scsr_mailbox_get_resp_desc(client_id, job_id, &di);
-		if (resp_desc != NULL) {
-			VERBOSE("%s: Resp received for cid %d, jid %d\n",
-				__func__, resp_desc->client_id, resp_desc->job_id);
-
-			uint16_t header = resp_desc->header;
-
-			/* Update the return response length */
-			if (resp_len != NULL) {
-				*resp_len = resp_desc->rcvd_resp_len;
-			}
-
-			/* Free the response and command descriptor */
-			scsr_mailbox_free_resp_desc(di);
-			scsr_mailbox_free_cmd_desc(cmd_desc);
-
-			if (MBOX_RESP_ERR(header) > 0U) {
-				INFO("%s: SDM err code: 0x%x\n", __func__,
-				     MBOX_RESP_ERR(header));
-				return -MBOX_RESP_ERR(header);
-			}
-
-			VERBOSE("%s: MBOX_RET_OK\n", __func__);
-			return MBOX_RET_OK;
-		}
-		sdm_loop--;
-	}
-
-	INFO("%s: Timed out waiting for SDM\n", __func__);
-	return MBOX_TIMEOUT;
 }
 
 /* SDM response parser handler state machine. */
@@ -1254,6 +1014,8 @@ void scsr_mailbox_init_v3(void)
 	mbox_svc.curr_di = -1;
 }
 
+#endif /* SOCFPGA_SIP_SVC_V3 */
+
 int scsr_mailbox_init(void)
 {
 	int status;
@@ -1271,7 +1033,7 @@ int scsr_mailbox_init(void)
 		return status;
 	}
 
-#if SIP_SVC_V3
+#if SOCFPGA_SIP_SVC_V3
 	/* Initialize the mailbox version3 implementation, and in V3 we
 	 * are interested in only RIE interrupt
 	 */
@@ -1284,6 +1046,79 @@ int scsr_mailbox_init(void)
 
 	return MBOX_RET_OK;
 }
+
+#if !SOCFPGA_SIP_SVC_V3
+static int scsr_stub_send_async_v3(uint8_t client_id, uint8_t job_id, uint32_t cmd,
+				   uint32_t *args, uint32_t args_len, uint8_t cmd_flag,
+				   sdm_command_callback cb, uint32_t *cb_args,
+				   uint32_t cb_args_len)
+{
+	(void)client_id; (void)job_id; (void)cmd; (void)args; (void)args_len;
+	(void)cmd_flag; (void)cb; (void)cb_args; (void)cb_args_len;
+	return MBOX_RET_ERROR;
+}
+
+static int scsr_stub_response_poll_v3(uint8_t client_id, uint8_t job_id,
+				      uint64_t *ret_args, uint32_t *ret_args_len)
+{
+	(void)client_id; (void)job_id; (void)ret_args; (void)ret_args_len;
+	return MBOX_RET_ERROR;
+}
+
+static int scsr_stub_response_poll_on_intr_v3(uint8_t *client_id, uint8_t *job_id,
+					      uint64_t *bitmap)
+{
+	(void)client_id; (void)job_id; (void)bitmap;
+	return MBOX_RET_ERROR;
+}
+
+static void scsr_stub_init_v3(void)
+{
+}
+
+static void scsr_stub_response_parser(void)
+{
+}
+
+static int scsr_stub_response_handler_fsm(void)
+{
+	return MBOX_RET_ERROR;
+}
+
+static sdm_command_t *scsr_stub_get_cmd_desc(uint8_t client_id, uint8_t job_id,
+					     bool ignore_job_id)
+{
+	(void)client_id; (void)job_id; (void)ignore_job_id;
+	return NULL;
+}
+
+static sdm_response_t *scsr_stub_get_resp_desc(uint8_t client_id, uint8_t job_id,
+					       uint8_t *index)
+{
+	(void)client_id; (void)job_id; (void)index;
+	return NULL;
+}
+
+static int32_t scsr_stub_get_free_resp_desc(void)
+{
+	return -1;
+}
+
+static sdm_command_t *scsr_stub_get_free_cmd_desc(void)
+{
+	return NULL;
+}
+
+static void scsr_stub_free_cmd_desc(sdm_command_t *cmd_desc)
+{
+	(void)cmd_desc;
+}
+
+static void scsr_stub_free_resp_desc(uint8_t index)
+{
+	(void)index;
+}
+#endif /* !SOCFPGA_SIP_SVC_V3 */
 
 /* -------------------------------------------------------------------------
  * SCSR backend vtable
@@ -1306,23 +1141,35 @@ struct mailbox_backend scsr_backend = {
 	.send = scsr_mailbox_send_cmd,
 	.clear_response = scsr_mailbox_clear_response,
 	.set_int = scsr_mailbox_set_int,
-	.fill_cmd_desc = scsr_mailbox_fill_cmd_desc,
+#if SOCFPGA_SIP_SVC_V3
 	.get_cmd_desc = scsr_mailbox_get_cmd_desc,
-	.get_resp_desc_cid = scsr_mailbox_get_resp_desc_cid,
 	.get_resp_desc = scsr_mailbox_get_resp_desc,
 	.get_free_resp_desc = scsr_mailbox_get_free_resp_desc,
 	.get_free_cmd_desc = scsr_mailbox_get_free_cmd_desc,
 	.free_cmd_desc = scsr_mailbox_free_cmd_desc,
 	.free_resp_desc = scsr_mailbox_free_resp_desc,
-	.read_response_v3 = scsr_mailbox_read_response_v3,
 	.send_async_v3 = scsr_mailbox_send_cmd_async_v3,
 	.send_cmd_async_v3 = scsr_mailbox_send_cmd_async_v3,
-	.poll_response_v3 = scsr_mailbox_poll_response_v3,
 	.response_parser = scsr_mailbox_response_parser,
 	.response_handler_fsm = scsr_mailbox_response_handler_fsm,
 	.response_poll_on_intr_v3 = scsr_mailbox_response_poll_on_intr_v3,
 	.response_poll_v3 = scsr_mailbox_response_poll_v3,
-	.init_v3 = scsr_mailbox_init_v3
+	.init_v3 = scsr_mailbox_init_v3,
+#else
+	.get_cmd_desc = scsr_stub_get_cmd_desc,
+	.get_resp_desc = scsr_stub_get_resp_desc,
+	.get_free_resp_desc = scsr_stub_get_free_resp_desc,
+	.get_free_cmd_desc = scsr_stub_get_free_cmd_desc,
+	.free_cmd_desc = scsr_stub_free_cmd_desc,
+	.free_resp_desc = scsr_stub_free_resp_desc,
+	.send_async_v3 = scsr_stub_send_async_v3,
+	.send_cmd_async_v3 = scsr_stub_send_async_v3,
+	.response_parser = scsr_stub_response_parser,
+	.response_handler_fsm = scsr_stub_response_handler_fsm,
+	.response_poll_on_intr_v3 = scsr_stub_response_poll_on_intr_v3,
+	.response_poll_v3 = scsr_stub_response_poll_v3,
+	.init_v3 = scsr_stub_init_v3,
+#endif /* SOCFPGA_SIP_SVC_V3 */
 
 };
 

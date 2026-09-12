@@ -691,7 +691,7 @@ int mcsr_mailbox_send_cmd_async_v3(uint8_t client_id, uint8_t job_id, uint32_t c
  * This preserves original semantics: it assigns the caller buffer as cmd_desc->cb_args,
  * invokes the response handler, and returns the first available response for the fixed client id.
  */
-int mcsr_mailbox_read_response_async(unsigned int *job_id, uint32_t *header,
+int mcsr_mailbox_read_response_async(uint32_t *job_id, uint32_t *header,
 				     uint32_t *response, unsigned int *resp_len,
 				     uint8_t ignore_client_id)
 {
@@ -744,7 +744,7 @@ int mcsr_mailbox_read_response_async(unsigned int *job_id, uint32_t *header,
 /*
  * Blocking read (legacy): waits for any response for ATF client (ignore job id).
  */
-int mcsr_mailbox_read_response(unsigned int *job_id, uint32_t *response, unsigned int *resp_len)
+int mcsr_mailbox_read_response(uint32_t *job_id, uint32_t *response, unsigned int *resp_len)
 {
 	int status = MBOX_RET_OK;
 

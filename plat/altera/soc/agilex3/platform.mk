@@ -5,6 +5,12 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
+
+# 1: build SiP V3 SMC + multi-client mailbox; 0: classic mailbox only (Zephyr).
+SOCFPGA_SIP_SVC_V3		?=	1
+$(eval $(call assert_boolean,SOCFPGA_SIP_SVC_V3))
+$(eval $(call add_define,SOCFPGA_SIP_SVC_V3))
+
 include lib/xlat_tables_v2/xlat_tables.mk
 include lib/libfdt/libfdt.mk
 PLAT_INCLUDES		:=	\
@@ -103,7 +109,6 @@ BL31_SOURCES	+=	\
 		plat/altera/soc/agilex3/soc/agilex3_power_manager.c	\
 		plat/altera/soc/common/socfpga_psci.c			\
 		plat/altera/soc/common/socfpga_sip_svc.c		\
-		plat/altera/soc/common/socfpga_sip_svc_v2.c		\
 		plat/altera/soc/common/socfpga_topology.c		\
 		plat/altera/soc/common/sip/socfpga_sip_ecc.c		\
 		plat/altera/soc/common/sip/socfpga_sip_fcs.c		\

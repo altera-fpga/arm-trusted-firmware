@@ -48,10 +48,10 @@ struct mailbox_backend {
 			     uint32_t *args, uint32_t args_len, uint8_t cmd_flag,
 			     sdm_command_callback cb, uint32_t *cb_args,
 			     uint32_t cb_args_len);
-	int (*read_response_async)(unsigned int *job_id, uint32_t *header,
+	int (*read_response_async)(uint32_t *job_id, uint32_t *header,
 				   uint32_t *response, unsigned int *resp_len,
 				   uint8_t ignore_client_id);
-	int (*read_response)(unsigned int *job_id, uint32_t *response, unsigned int *resp_len);
+	int (*read_response)(uint32_t *job_id, uint32_t *response, unsigned int *resp_len);
 	void (*set_int)(uint32_t interrupt);
 	void (*clear_response)(void);
 	int (*response_poll_v3)(uint8_t client_id, uint8_t job_id,
@@ -74,17 +74,10 @@ struct mailbox_backend {
 			      unsigned int len, unsigned int indirect);
 	int (*fill_cmd_desc)(uint8_t client_id, uint8_t job_id,
 			     uint32_t *resp_buff);
-	int (*read_response_v3)(uint8_t client_id, uint8_t *job_id,
-				uint32_t *header, uint32_t *resp,
-				uint32_t *resp_len,
-				uint8_t ignore_client_id);
 	int (*send_cmd_async_v3)(uint8_t client_id, uint8_t job_id, uint32_t cmd,
 				 uint32_t *args, uint32_t args_len, uint8_t cmd_flag,
 				 sdm_command_callback cb, uint32_t *cb_args,
 				 uint32_t cb_args_len);
-	int (*poll_response_v3)(uint8_t client_id, uint8_t job_id,
-				uint32_t *resp, unsigned int *resp_len,
-				uint32_t urgent);
 	void (*response_parser)(void);
 	int (*response_handler_fsm)(void);
 	void (*init_v3)(void);

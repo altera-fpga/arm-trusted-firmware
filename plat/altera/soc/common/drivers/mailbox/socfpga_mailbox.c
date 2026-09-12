@@ -26,13 +26,13 @@
  * -------------------------------------------------------------------------
  */
 
-int mailbox_read_response(unsigned int *job_id, uint32_t *response,
+int mailbox_read_response(uint32_t *job_id, uint32_t *response,
 			  unsigned int *resp_len)
 {
 	return mailbox->read_response(job_id, response, resp_len);
 }
 
-int mailbox_read_response_async(unsigned int *job_id, uint32_t *header,
+int mailbox_read_response_async(uint32_t *job_id, uint32_t *header,
 				uint32_t *response, unsigned int *resp_len,
 				uint8_t ignore_client_id)
 {
@@ -75,7 +75,7 @@ void mailbox_set_int(uint32_t interrupt)
 	mailbox->set_int(interrupt);
 }
 
-#if SIP_SVC_V3
+#if SOCFPGA_SIP_SVC_V3
 int mailbox_send_cmd_async_v3(uint8_t client_id, uint8_t job_id, uint32_t cmd,
 			      uint32_t *args, uint32_t args_len, uint8_t cmd_flag,
 			      sdm_command_callback cb, uint32_t *cb_args,
@@ -96,4 +96,28 @@ int mailbox_response_poll_v3(uint8_t client_id, uint8_t job_id,
 {
 	return mailbox->response_poll_v3(client_id, job_id, ret_args, ret_args_len);
 }
-#endif /* SIP_SVC_V3 */
+#else
+int mailbox_send_cmd_async_v3(uint8_t client_id, uint8_t job_id, uint32_t cmd,
+			      uint32_t *args, uint32_t args_len, uint8_t cmd_flag,
+			      sdm_command_callback cb, uint32_t *cb_args,
+			      uint32_t cb_args_len)
+{
+	(void)client_id; (void)job_id; (void)cmd; (void)args; (void)args_len;
+	(void)cmd_flag; (void)cb; (void)cb_args; (void)cb_args_len;
+	return MBOX_RET_ERROR;
+}
+
+int mailbox_response_poll_on_intr_v3(uint8_t *client_id, uint8_t *job_id,
+				     uint64_t *bitmap)
+{
+	(void)client_id; (void)job_id; (void)bitmap;
+	return MBOX_RET_ERROR;
+}
+
+int mailbox_response_poll_v3(uint8_t client_id, uint8_t job_id,
+			     uint64_t *ret_args, uint32_t *ret_args_len)
+{
+	(void)client_id; (void)job_id; (void)ret_args; (void)ret_args_len;
+	return MBOX_RET_ERROR;
+}
+#endif /* SOCFPGA_SIP_SVC_V3 */

@@ -253,7 +253,6 @@ uintptr_t sip_smc_handler_v2(uint32_t smc_fid,
 			 u_register_t flags);
 
 
-#if SIP_SVC_V3
 #define SMC_RET_ARGS_ONE							(1)
 #define SMC_RET_ARGS_TWO							(2)
 #define SMC_RET_ARGS_THREE							(3)
@@ -370,6 +369,5 @@ uintptr_t sip_smc_handler_v2(uint32_t smc_fid,
 #define GET_JOB_ID(x)								((x) & 0x0F)
 #define GET_ADDR64(high, low)							(((uint64_t)(high) \
 										   << 32) | (low))
-#endif	/* SIP_SVC_V3 */
 
 #endif /* SOCFPGA_SIP_SVC_H */
