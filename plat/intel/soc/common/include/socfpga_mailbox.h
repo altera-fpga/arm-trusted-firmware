@@ -271,6 +271,8 @@ int mailbox_read_response(uint32_t *job_id, uint32_t *response,
 int mailbox_read_response_async(uint32_t *job_id, uint32_t *header,
 			uint32_t *response, unsigned int *resp_len,
 			uint8_t ignore_client_id);
+int mailbox_poll_response(uint32_t job_id, uint32_t urgent, uint32_t *response,
+			  unsigned int *resp_len);
 int iterate_resp(uint32_t mbox_resp_len, uint32_t *resp_buf,
 			unsigned int *resp_len);
 
@@ -299,7 +301,6 @@ int mailbox_safe_inject_seu_err(uint32_t *arg, unsigned int len);
 
 int mailbox_send_fpga_config_comp(void);
 
-#if SIP_SVC_V3
 #define MBOX_CLIENT_ID_SHIFT				(28)
 #define MBOX_JOB_ID_SHIFT				(24)
 #define MBOX_CMD_LEN_SHIFT				(12)
@@ -400,6 +401,5 @@ int mailbox_response_poll_v3(uint8_t client_id, uint8_t job_id, uint64_t *ret_ar
 int mailbox_response_poll_on_intr_v3(uint8_t *client_id, uint8_t *job_id,
 				     uint64_t *bitmap);
 
-#endif		/* #if SIP_SVC_V3 */
 
 #endif /* SOCFPGA_MBOX_H */

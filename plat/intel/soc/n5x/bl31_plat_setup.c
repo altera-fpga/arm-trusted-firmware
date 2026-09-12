@@ -116,15 +116,13 @@ void bl31_platform_setup(void)
 	mmio_write_64(PLAT_CPU_RELEASE_ADDR,
 		(uint64_t)plat_secondary_cpus_bl31_entry);
 
-#if SIP_SVC_V3
 	/*
-	 * Re-initialize the mailbox to include V3 specific routines.
-	 * In V3, this re-initialize is required because prior to BL31, U-Boot
+	 * Re-initialize the mailbox after U-Boot stage.
+	 * This re-initialize is required because prior to BL31, U-Boot
 	 * SPL has its own mailbox settings and this initialization will
 	 * override to those settings as required by the V3 framework.
 	 */
 	mailbox_init();
-#endif
 
 	mailbox_hps_stage_notify(HPS_EXECUTION_STATE_SSBL);
 }

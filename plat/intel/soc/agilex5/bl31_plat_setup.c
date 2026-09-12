@@ -212,15 +212,13 @@ void bl31_platform_setup(void)
 	if (bl32_image_ep_info.pc == 0U)
 		agilex5_enable_ns_group1_sgi_for_bl33();
 
-#if SIP_SVC_V3
 	/*
-	 * Re-initialize the mailbox to include V3 specific routines.
-	 * In V3, this re-initialize is required because prior to BL31, U-Boot
+	 * Re-initialize the mailbox after U-Boot stage.
+	 * This re-initialize is required because prior to BL31, U-Boot
 	 * SPL has its own mailbox settings and this initialization will
 	 * override to those settings as required by the V3 framework.
 	 */
 	mailbox_init();
-#endif
 
 	mailbox_hps_stage_notify(HPS_EXECUTION_STATE_SSBL);
 }

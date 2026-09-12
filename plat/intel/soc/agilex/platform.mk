@@ -6,6 +6,12 @@
 # SPDX-License-Identifier: BSD-3-Clause
 #
 
+# 1: build SiP V3 SMC + multi-client mailbox; 0: classic mailbox only (Zephyr).
+SOCFPGA_SIP_SVC_V3		?=	1
+$(eval $(call assert_boolean,SOCFPGA_SIP_SVC_V3))
+$(eval $(call add_define,SOCFPGA_SIP_SVC_V3))
+
+
 PLAT_INCLUDES		:=	\
 			-Iplat/intel/soc/agilex/include/		\
 			-Iplat/intel/soc/common/drivers/		\
@@ -76,7 +82,6 @@ BL31_SOURCES	+=	\
 		plat/intel/soc/agilex/soc/agilex_clock_manager.c	\
 		plat/intel/soc/common/socfpga_psci.c			\
 		plat/intel/soc/common/socfpga_sip_svc.c			\
-		plat/intel/soc/common/socfpga_sip_svc_v2.c		\
 		plat/intel/soc/common/socfpga_topology.c		\
 		plat/intel/soc/common/sip/socfpga_sip_ecc.c		\
 		plat/intel/soc/common/sip/socfpga_sip_fcs.c		\
