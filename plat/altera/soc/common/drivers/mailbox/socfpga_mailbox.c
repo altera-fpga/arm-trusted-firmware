@@ -22,13 +22,18 @@
 
 /* -------------------------------------------------------------------------
  * Public wrappers -- all dispatch through the mailbox vtable pointer
- * set by mailbox_core_init().
+ * set by mailbox_core_init(). Guard against NULL ops so backends may leave
+ * unsupported slots unset (e.g. V3 when SOCFPGA_SIP_SVC_V3=0).
  * -------------------------------------------------------------------------
  */
 
 int mailbox_read_response(uint32_t *job_id, uint32_t *response,
 			  unsigned int *resp_len)
 {
+	if ((mailbox == NULL) || (mailbox->read_response == NULL)) {
+		return MBOX_RET_ERROR;
+	}
+
 	return mailbox->read_response(job_id, response, resp_len);
 }
 
@@ -36,6 +41,10 @@ int mailbox_read_response_async(uint32_t *job_id, uint32_t *header,
 				uint32_t *response, unsigned int *resp_len,
 				uint8_t ignore_client_id)
 {
+	if ((mailbox == NULL) || (mailbox->read_response_async == NULL)) {
+		return MBOX_RET_ERROR;
+	}
+
 	return mailbox->read_response_async(job_id, header, response, resp_len,
 						ignore_client_id);
 }
@@ -43,18 +52,30 @@ int mailbox_read_response_async(uint32_t *job_id, uint32_t *header,
 int iterate_resp(uint32_t mbox_resp_len, uint32_t *resp_buf,
 		 unsigned int *resp_len)
 {
+	if ((mailbox == NULL) || (mailbox->iterate_resp == NULL)) {
+		return MBOX_RET_ERROR;
+	}
+
 	return mailbox->iterate_resp(mbox_resp_len, resp_buf, resp_len);
 }
 
 int mailbox_send_cmd_async_ext(uint32_t header_cmd, uint32_t *args,
 			       unsigned int len)
 {
+	if ((mailbox == NULL) || (mailbox->send_async_ext == NULL)) {
+		return MBOX_RET_ERROR;
+	}
+
 	return mailbox->send_async_ext(header_cmd, args, len);
 }
 
 int mailbox_send_cmd_async(uint32_t *job_id, uint32_t cmd, uint32_t *args,
 			   unsigned int len, unsigned int indirect)
 {
+	if ((mailbox == NULL) || (mailbox->send_async == NULL)) {
+		return MBOX_RET_ERROR;
+	}
+
 	return mailbox->send_async(job_id, cmd, args, len, indirect);
 }
 
@@ -62,62 +83,60 @@ int mailbox_send_cmd(uint32_t job_id, uint32_t cmd, uint32_t *args,
 		     unsigned int len, uint32_t urgent, uint32_t *response,
 		     unsigned int *resp_len)
 {
+	if ((mailbox == NULL) || (mailbox->send == NULL)) {
+		return MBOX_RET_ERROR;
+	}
+
 	return mailbox->send(job_id, cmd, args, len, urgent, response, resp_len);
 }
 
 void mailbox_clear_response(void)
 {
+	if ((mailbox == NULL) || (mailbox->clear_response == NULL)) {
+		return;
+	}
+
 	mailbox->clear_response();
 }
 
 void mailbox_set_int(uint32_t interrupt)
 {
+	if ((mailbox == NULL) || (mailbox->set_int == NULL)) {
+		return;
+	}
+
 	mailbox->set_int(interrupt);
 }
 
-#if SOCFPGA_SIP_SVC_V3
 int mailbox_send_cmd_async_v3(uint8_t client_id, uint8_t job_id, uint32_t cmd,
 			      uint32_t *args, uint32_t args_len, uint8_t cmd_flag,
 			      sdm_command_callback cb, uint32_t *cb_args,
 			      uint32_t cb_args_len)
 {
+	if ((mailbox == NULL) || (mailbox->send_async_v3 == NULL)) {
+		return MBOX_RET_ERROR;
+	}
+
 	return mailbox->send_async_v3(client_id, job_id, cmd, args, args_len,
 				  cmd_flag, cb, cb_args, cb_args_len);
 }
 
 int mailbox_response_poll_on_intr_v3(uint8_t *client_id, uint8_t *job_id,
-									uint64_t *bitmap)
-{
-	return mailbox->response_poll_on_intr_v3(client_id, job_id, bitmap);
-}
-
-int mailbox_response_poll_v3(uint8_t client_id, uint8_t job_id,
-							uint64_t *ret_args, uint32_t *ret_args_len)
-{
-	return mailbox->response_poll_v3(client_id, job_id, ret_args, ret_args_len);
-}
-#else
-int mailbox_send_cmd_async_v3(uint8_t client_id, uint8_t job_id, uint32_t cmd,
-			      uint32_t *args, uint32_t args_len, uint8_t cmd_flag,
-			      sdm_command_callback cb, uint32_t *cb_args,
-			      uint32_t cb_args_len)
-{
-	(void)client_id; (void)job_id; (void)cmd; (void)args; (void)args_len;
-	(void)cmd_flag; (void)cb; (void)cb_args; (void)cb_args_len;
-	return MBOX_RET_ERROR;
-}
-
-int mailbox_response_poll_on_intr_v3(uint8_t *client_id, uint8_t *job_id,
 				     uint64_t *bitmap)
 {
-	(void)client_id; (void)job_id; (void)bitmap;
-	return MBOX_RET_ERROR;
+	if ((mailbox == NULL) || (mailbox->response_poll_on_intr_v3 == NULL)) {
+		return MBOX_RET_ERROR;
+	}
+
+	return mailbox->response_poll_on_intr_v3(client_id, job_id, bitmap);
 }
 
 int mailbox_response_poll_v3(uint8_t client_id, uint8_t job_id,
 			     uint64_t *ret_args, uint32_t *ret_args_len)
 {
-	(void)client_id; (void)job_id; (void)ret_args; (void)ret_args_len;
-	return MBOX_RET_ERROR;
+	if ((mailbox == NULL) || (mailbox->response_poll_v3 == NULL)) {
+		return MBOX_RET_ERROR;
+	}
+
+	return mailbox->response_poll_v3(client_id, job_id, ret_args, ret_args_len);
 }
-#endif /* SOCFPGA_SIP_SVC_V3 */

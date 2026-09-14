@@ -1047,81 +1047,11 @@ int scsr_mailbox_init(void)
 	return MBOX_RET_OK;
 }
 
-#if !SOCFPGA_SIP_SVC_V3
-static int scsr_stub_send_async_v3(uint8_t client_id, uint8_t job_id, uint32_t cmd,
-				   uint32_t *args, uint32_t args_len, uint8_t cmd_flag,
-				   sdm_command_callback cb, uint32_t *cb_args,
-				   uint32_t cb_args_len)
-{
-	(void)client_id; (void)job_id; (void)cmd; (void)args; (void)args_len;
-	(void)cmd_flag; (void)cb; (void)cb_args; (void)cb_args_len;
-	return MBOX_RET_ERROR;
-}
-
-static int scsr_stub_response_poll_v3(uint8_t client_id, uint8_t job_id,
-				      uint64_t *ret_args, uint32_t *ret_args_len)
-{
-	(void)client_id; (void)job_id; (void)ret_args; (void)ret_args_len;
-	return MBOX_RET_ERROR;
-}
-
-static int scsr_stub_response_poll_on_intr_v3(uint8_t *client_id, uint8_t *job_id,
-					      uint64_t *bitmap)
-{
-	(void)client_id; (void)job_id; (void)bitmap;
-	return MBOX_RET_ERROR;
-}
-
-static void scsr_stub_init_v3(void)
-{
-}
-
-static void scsr_stub_response_parser(void)
-{
-}
-
-static int scsr_stub_response_handler_fsm(void)
-{
-	return MBOX_RET_ERROR;
-}
-
-static sdm_command_t *scsr_stub_get_cmd_desc(uint8_t client_id, uint8_t job_id,
-					     bool ignore_job_id)
-{
-	(void)client_id; (void)job_id; (void)ignore_job_id;
-	return NULL;
-}
-
-static sdm_response_t *scsr_stub_get_resp_desc(uint8_t client_id, uint8_t job_id,
-					       uint8_t *index)
-{
-	(void)client_id; (void)job_id; (void)index;
-	return NULL;
-}
-
-static int32_t scsr_stub_get_free_resp_desc(void)
-{
-	return -1;
-}
-
-static sdm_command_t *scsr_stub_get_free_cmd_desc(void)
-{
-	return NULL;
-}
-
-static void scsr_stub_free_cmd_desc(sdm_command_t *cmd_desc)
-{
-	(void)cmd_desc;
-}
-
-static void scsr_stub_free_resp_desc(uint8_t index)
-{
-	(void)index;
-}
-#endif /* !SOCFPGA_SIP_SVC_V3 */
-
 /* -------------------------------------------------------------------------
  * SCSR backend vtable
+ *
+ * V3 slots are left NULL when SOCFPGA_SIP_SVC_V3=0. Public wrappers in
+ * socfpga_mailbox.c check for NULL before dispatch.
  * -------------------------------------------------------------------------
  */
 struct mailbox_backend scsr_backend = {
@@ -1155,22 +1085,7 @@ struct mailbox_backend scsr_backend = {
 	.response_poll_on_intr_v3 = scsr_mailbox_response_poll_on_intr_v3,
 	.response_poll_v3 = scsr_mailbox_response_poll_v3,
 	.init_v3 = scsr_mailbox_init_v3,
-#else
-	.get_cmd_desc = scsr_stub_get_cmd_desc,
-	.get_resp_desc = scsr_stub_get_resp_desc,
-	.get_free_resp_desc = scsr_stub_get_free_resp_desc,
-	.get_free_cmd_desc = scsr_stub_get_free_cmd_desc,
-	.free_cmd_desc = scsr_stub_free_cmd_desc,
-	.free_resp_desc = scsr_stub_free_resp_desc,
-	.send_async_v3 = scsr_stub_send_async_v3,
-	.send_cmd_async_v3 = scsr_stub_send_async_v3,
-	.response_parser = scsr_stub_response_parser,
-	.response_handler_fsm = scsr_stub_response_handler_fsm,
-	.response_poll_on_intr_v3 = scsr_stub_response_poll_on_intr_v3,
-	.response_poll_v3 = scsr_stub_response_poll_v3,
-	.init_v3 = scsr_stub_init_v3,
 #endif /* SOCFPGA_SIP_SVC_V3 */
-
 };
 
 /* Expose the SCSR backend to the common core dispatcher. */
