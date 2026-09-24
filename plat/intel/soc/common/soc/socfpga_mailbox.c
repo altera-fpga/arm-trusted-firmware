@@ -38,6 +38,11 @@ static mailbox_service_t mbox_svc;	/* Mailbox service data base */
 static mailbox_payload_t mailbox_resp_payload;
 static mailbox_container_t mailbox_resp_ctr = {0, 0, &mailbox_resp_payload};
 
+static bool mailbox_read_response_queue(unsigned int *job_id, uint32_t *header,
+					uint32_t *response,
+					unsigned int *resp_len, int *status);
+static void mailbox_track_async_job(uint8_t job_id, bool track);
+
 static bool is_mailbox_cmdbuf_full(uint32_t cin)
 {
 	uint32_t cout = mmio_read_32(MBOX_OFFSET + MBOX_COUT);
@@ -191,6 +196,12 @@ int mailbox_read_response(unsigned int *job_id, uint32_t *response,
 	uint32_t rout;
 	uint32_t resp_data;
 	unsigned int ret_resp_len;
+	int status;
+
+	if (mailbox_read_response_queue(job_id, NULL, response, resp_len,
+					&status)) {
+		return status;
+	}
 
 	if (mmio_read_32(MBOX_OFFSET + MBOX_DOORBELL_FROM_SDM) == 1U) {
 		mmio_write_32(MBOX_OFFSET + MBOX_DOORBELL_FROM_SDM, 0U);
@@ -240,6 +251,12 @@ int mailbox_read_response_async(unsigned int *job_id, uint32_t *header,
 	uint32_t ret_resp_len = 0;
 	uint8_t is_done = 0;
 	uint32_t resp_len_check = 0;
+	int status;
+
+	if (mailbox_read_response_queue(job_id, header, response, resp_len,
+					&status)) {
+		return status;
+	}
 
 	if ((mailbox_resp_ctr.flag & MBOX_PAYLOAD_FLAG_BUSY) != 0) {
 		ret_resp_len = MBOX_RESP_LEN(
@@ -465,6 +482,8 @@ int mailbox_send_cmd_async(uint32_t *job_id, uint32_t cmd, uint32_t *args,
 {
 	int status;
 
+	mailbox_track_async_job((uint8_t)*job_id, true);
+
 	status = fill_mailbox_circular_buffer(
 				MBOX_CLIENT_ID_CMD(MBOX_ATF_CLIENT_ID) |
 				MBOX_JOB_ID_CMD(*job_id) |
@@ -472,6 +491,7 @@ int mailbox_send_cmd_async(uint32_t *job_id, uint32_t cmd, uint32_t *args,
 				MBOX_INDIRECT(indirect) |
 				cmd, args, len);
 	if (status < 0) {
+		mailbox_track_async_job((uint8_t)*job_id, false);
 		return status;
 	}
 
@@ -1070,6 +1090,8 @@ static void mailbox_response_parser(void)
 						mbox_svc.resp_queue[mbox_svc.curr_di].job_id);
 		if (cmd_desc != NULL && cmd_desc->cb_args != NULL) {
 			read_buff = cmd_desc->cb_args;
+			mbox_svc.resp_queue[mbox_svc.curr_di].flags |=
+						FLAG_SDM_RESPONSE_IN_CB_ARGS;
 			/*
 			 * Bound the copy length by the caller-declared cb_args_len
 			 * (in words) to prevent out-of-bounds writes into the
@@ -1291,6 +1313,126 @@ int mailbox_response_poll_v3(uint8_t client_id, uint8_t job_id,
 	return MBOX_NO_RESPONSE;
 }
 
+/* Reuse or allocate the ATF descriptor for job_id and point it at buf. */
+static sdm_command_t *mailbox_set_cmd_desc(uint8_t job_id, uint32_t *buf,
+					   unsigned int len)
+{
+	sdm_command_t *cmd_desc = mailbox_get_cmd_desc(MBOX_ATF_CLIENT_ID,
+						       job_id);
+
+	if (cmd_desc == NULL) {
+		cmd_desc = mailbox_get_free_cmd_desc();
+	}
+	if (cmd_desc != NULL) {
+		cmd_desc->client_id = MBOX_ATF_CLIENT_ID;
+		cmd_desc->job_id = job_id;
+		cmd_desc->cb = NULL;
+		cmd_desc->cb_args = buf;
+		cmd_desc->cb_args_len = len;
+	}
+
+	return cmd_desc;
+}
+
+/* Hand one queued ATF response to a V1 caller, then free it. */
+static int mailbox_queue_consume(sdm_response_t *resp_desc, uint8_t di,
+				 uint32_t *response, unsigned int *resp_len,
+				 uint32_t *header)
+{
+	uint32_t err = MBOX_RESP_ERR(resp_desc->header);
+	unsigned int len = 0U;
+
+	if ((response != NULL) && (resp_len != NULL)) {
+		len = MIN(*resp_len, (unsigned int)resp_desc->rcvd_resp_len);
+		if ((resp_desc->flags & FLAG_SDM_RESPONSE_IN_CB_ARGS) == 0U) {
+			memcpy_s((uint8_t *)response, len * MBOX_WORD_BYTE,
+				 (uint8_t *)resp_desc->resp_data,
+				 len * MBOX_WORD_BYTE);
+		}
+	}
+	if (resp_len != NULL) {
+		*resp_len = len;
+	}
+	if (header != NULL) {
+		*header = resp_desc->header;
+	}
+	if (err > 0U) {
+		INFO("SDM response: Return Code: 0x%x\n", err);
+	}
+	mailbox_free_resp_desc(di);
+
+	return -(int)err;
+}
+
+/*
+ * The V3 FSM owns the response FIFO (it also runs from the NS mailbox IRQ
+ * path), so V1 reads take ATF responses from the V3 queue instead.
+ */
+static bool mailbox_read_response_queue(unsigned int *job_id, uint32_t *header,
+					uint32_t *response,
+					unsigned int *resp_len, int *status)
+{
+	sdm_response_t *resp_desc = NULL;
+	sdm_command_t *cmd_desc = NULL;
+	uint8_t di = 0U;
+	uint8_t jid;
+
+	if (mmio_read_32(MBOX_OFFSET + MBOX_DOORBELL_FROM_SDM) == 1U) {
+		mmio_write_32(MBOX_OFFSET + MBOX_DOORBELL_FROM_SDM, 0U);
+	}
+
+	/* Lend the caller buffer to one pending job, for large payloads. */
+	if ((response != NULL) && (resp_len != NULL) && (*resp_len > 0U)) {
+		for (jid = 0U; (jid < MBOX_JOB_ID) && (cmd_desc == NULL); jid++) {
+			cmd_desc = mailbox_get_cmd_desc(MBOX_ATF_CLIENT_ID, jid);
+		}
+		if (cmd_desc != NULL) {
+			cmd_desc->cb_args = response;
+			cmd_desc->cb_args_len = *resp_len;
+		}
+	}
+
+	(void)mailbox_response_handler_fsm();
+
+	if (cmd_desc != NULL) {
+		cmd_desc->cb_args = NULL;
+		cmd_desc->cb_args_len = 0U;
+		resp_desc = mailbox_get_resp_desc(MBOX_ATF_CLIENT_ID,
+						  cmd_desc->job_id, &di);
+	}
+
+	/* MBOX_JOB_ID is used by sync commands only. */
+	for (jid = 0U; (jid < MBOX_JOB_ID) && (resp_desc == NULL); jid++) {
+		resp_desc = mailbox_get_resp_desc(MBOX_ATF_CLIENT_ID, jid, &di);
+	}
+
+	if (resp_desc == NULL) {
+		if (resp_len != NULL) {
+			*resp_len = 0U;
+		}
+		*status = MBOX_NO_RESPONSE;
+		return true;
+	}
+
+	*job_id = resp_desc->job_id;
+	mailbox_track_async_job(resp_desc->job_id, false);
+	*status = mailbox_queue_consume(resp_desc, di, response, resp_len,
+					header);
+
+	return true;
+}
+
+/* Keep one command descriptor per outstanding V1 async job. */
+static void mailbox_track_async_job(uint8_t job_id, bool track)
+{
+	if (track) {
+		(void)mailbox_set_cmd_desc(job_id, NULL, 0U);
+	} else {
+		mailbox_free_cmd_desc(mailbox_get_cmd_desc(MBOX_ATF_CLIENT_ID,
+							   job_id));
+	}
+}
+
 void mailbox_init_v3(void)
 {
 	uint32_t count;
@@ -1314,6 +1456,20 @@ void mailbox_init_v3(void)
 }
 
 #else /* !SOCFPGA_SIP_SVC_V3 */
+static bool mailbox_read_response_queue(unsigned int *job_id, uint32_t *header,
+					uint32_t *response,
+					unsigned int *resp_len, int *status)
+{
+	(void)job_id; (void)header; (void)response; (void)resp_len;
+	(void)status;
+	return false;
+}
+
+static void mailbox_track_async_job(uint8_t job_id, bool track)
+{
+	(void)job_id; (void)track;
+}
+
 int mailbox_send_cmd_async_v3(uint8_t client_id, uint8_t job_id, uint32_t cmd,
 			      uint32_t *args, uint32_t args_len, uint8_t cmd_flag,
 			      sdm_command_callback cb, uint32_t *cb_args,
