@@ -56,6 +56,10 @@ static bool scsr_mailbox_read_response_queue(uint32_t *job_id, uint32_t *header,
 					     unsigned int *resp_len,
 					     int *status);
 static void scsr_mailbox_track_async_job(uint8_t job_id, bool track);
+static bool scsr_mailbox_send_cmd_queue(uint32_t job_id, uint32_t cmd,
+					uint32_t *args, unsigned int len,
+					uint32_t *response,
+					unsigned int *resp_len, int *status);
 
 /* -------------------------------------------------------------------------
  * SCSR backend (classic)
@@ -506,6 +510,12 @@ int scsr_mailbox_send_cmd(uint32_t job_id, uint32_t cmd, uint32_t *args,
 			  unsigned int *resp_len)
 {
 	int status = 0;
+
+	if ((urgent == 0U) &&
+	    scsr_mailbox_send_cmd_queue(job_id, cmd, args, len, response,
+					resp_len, &status)) {
+		return status;
+	}
 
 	if (urgent != 0U) {
 		urgent |= mmio_read_32(MBOX_OFFSET + MBOX_STATUS) &
@@ -1142,6 +1152,72 @@ static void scsr_mailbox_track_async_job(uint8_t job_id, bool track)
 	scsr_mailbox_free_cmd_desc(cmd_desc);
 }
 
+/*
+ * Sync commands also wait on the V3 queue, because the V3 FSM may drain the
+ * response FIFO from the NS mailbox IRQ path while ATF is polling.
+ */
+static bool scsr_mailbox_send_cmd_queue(uint32_t job_id, uint32_t cmd,
+					uint32_t *args, unsigned int len,
+					uint32_t *response,
+					unsigned int *resp_len, int *status)
+{
+	sdm_response_t *resp_desc = NULL;
+	sdm_command_t *cmd_desc = NULL;
+	unsigned int timeout;
+	uint32_t header_cmd;
+	uint8_t di = 0U;
+
+	/* Register the caller buffer before the SDM can respond. */
+	if ((response != NULL) && (resp_len != NULL) && (*resp_len > 0U)) {
+		cmd_desc = scsr_mailbox_set_cmd_desc((uint8_t)job_id, response,
+						     *resp_len);
+		if (cmd_desc == NULL) {
+			return false;
+		}
+	}
+
+	/* Drop a stale response left by an earlier timed-out command. */
+	if (scsr_mailbox_get_resp_desc(MBOX_ATF_CLIENT_ID, (uint8_t)job_id,
+				       &di) != NULL) {
+		scsr_mailbox_free_resp_desc(di);
+	}
+
+	header_cmd = MBOX_CLIENT_ID_CMD(MBOX_ATF_CLIENT_ID) |
+		     MBOX_JOB_ID_CMD(job_id) | MBOX_CMD_LEN_CMD(len) | cmd;
+	*status = scsr_fill_mailbox_circular_buffer(header_cmd, args, len);
+
+	for (timeout = 40U; (*status == 0) && (timeout != 0U); timeout--) {
+		if (mmio_read_32(MBOX_OFFSET + MBOX_DOORBELL_FROM_SDM) == 1U) {
+			mmio_write_32(MBOX_OFFSET + MBOX_DOORBELL_FROM_SDM, 0U);
+		}
+
+		(void)scsr_mailbox_response_handler_fsm();
+
+		resp_desc = scsr_mailbox_get_resp_desc(MBOX_ATF_CLIENT_ID,
+						       (uint8_t)job_id, &di);
+		if (resp_desc != NULL) {
+			break;
+		}
+		mdelay(10U);
+	}
+
+	if (resp_desc != NULL) {
+		*status = scsr_mailbox_queue_consume(resp_desc, di, response,
+						     resp_len, NULL);
+	} else {
+		if (*status == 0) {
+			INFO("Timed out waiting for SDM\n");
+			*status = MBOX_TIMEOUT;
+		}
+		if (resp_len != NULL) {
+			*resp_len = 0U;
+		}
+	}
+	scsr_mailbox_free_cmd_desc(cmd_desc);
+
+	return true;
+}
+
 void scsr_mailbox_init_v3(void)
 {
 	uint32_t count;
@@ -1178,6 +1254,16 @@ static bool scsr_mailbox_read_response_queue(uint32_t *job_id, uint32_t *header,
 static void scsr_mailbox_track_async_job(uint8_t job_id, bool track)
 {
 	(void)job_id; (void)track;
+}
+
+static bool scsr_mailbox_send_cmd_queue(uint32_t job_id, uint32_t cmd,
+					uint32_t *args, unsigned int len,
+					uint32_t *response,
+					unsigned int *resp_len, int *status)
+{
+	(void)job_id; (void)cmd; (void)args; (void)len; (void)response;
+	(void)resp_len; (void)status;
+	return false;
 }
 #endif /* SOCFPGA_SIP_SVC_V3 */
 
