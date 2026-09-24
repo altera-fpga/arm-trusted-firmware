@@ -314,6 +314,7 @@ int mailbox_send_fpga_config_comp(void);
 #define FLAG_SDM_RESPONSE_IS_USED			BIT(1)
 #define FLAG_SDM_RESPONSE_IS_IN_PROGRESS		BIT(2)
 #define FLAG_SDM_RESPONSE_IS_POLL_ON_INTR		BIT(3)
+#define FLAG_SDM_RESPONSE_IN_CB_ARGS			BIT(4)
 
 /*
  * TODO: Re-visit this queue size based on the system load.
