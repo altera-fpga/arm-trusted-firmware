@@ -11,7 +11,7 @@
 
 /* System Manager Register Map */
 
-// TODO: There is no relative mapping in Agilex72. Need to rework and check
+// TODO: There is no relative mapping in Agilex27. Need to rework and check
 #define SOCFPGA_SYSMGR_EMAC_0							0x44 /* TSN_0 */
 #define SOCFPGA_SYSMGR_EMAC_1							0x48 /* TSN_1 */
 #define SOCFPGA_SYSMGR_EMAC_2							0x4C /* TSN_2 */
@@ -377,7 +377,7 @@
 #define TSN1_STREAM_CTRL_REG						0x805121A0
 #define TSN2_STREAM_CTRL_REG						0x805121A4
 
-/* Stream ID configuration value for Agilex72 */
+/* Stream ID configuration value for Agilex27 */
 #define TSN0								0x00010001
 #define TSN1								0x00020002
 #define TSN2								0x00030003
@@ -390,7 +390,7 @@
 #define SDM								0x000A000A
 #define CORE_SIGHT_DEBUG						0x000B000B
 
-/* JTAG ID value for Agilex72*/
+/* JTAG ID value for Agilex27*/
 #define A590_JTAG_ID							0x9000
 #define A594_JTAG_ID							0x40009000
 /* AGX5 SM4 */

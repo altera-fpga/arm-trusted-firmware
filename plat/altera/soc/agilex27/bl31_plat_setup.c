@@ -19,9 +19,9 @@
 #include <lib/xlat_tables/xlat_tables_v2.h>
 #include <plat/common/platform.h>
 
-#include "agilex72_cache.h"
-#include "agilex72_power_manager.h"
-#include "agilex72_clock_manager.h"
+#include "agilex27_cache.h"
+#include "agilex27_power_manager.h"
+#include "agilex27_clock_manager.h"
 
 #include "ccu/ncore_ccu.h"
 #include "config_dma/socfpga_config_dma.h"

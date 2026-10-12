@@ -36,7 +36,7 @@
 func plat_secondary_cold_boot_setup
 	/* Wait until the it gets reset signal from rstmgr gets populated */
 poll_mailbox:
-#if	PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if	PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	mov_imm	x0, PLAT_SEC_ENTRY
 	dc	ivac, x0
 	dsb	sy
@@ -69,7 +69,7 @@ func platform_is_primary_cpu
 	ret
 endfunc platform_is_primary_cpu
 
-#elif (PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72)
+#elif (PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27)
 
 func platform_is_primary_cpu
 	/* Mask and save the current core's MPIDR to x5 */
@@ -143,7 +143,7 @@ func plat_my_core_pos
 	mrs	x0, mpidr_el1
 	and	x1, x0, #MPIDR_CPU_MASK
 	and	x0, x0, #MPIDR_CLUSTER_MASK
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	add	x0, x1, x0, LSR #8
 #else
 	add	x0, x1, x0, LSR #6
@@ -152,7 +152,7 @@ func plat_my_core_pos
 endfunc plat_my_core_pos
 
 func warm_reset_req
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	/* Clear the markup before going for warm reset */
 	bic	x2, x2, #BS_REG_MAGIC_KEYS_MASK
 	/* Check if the address is 64 bit aligned or not */
@@ -196,7 +196,7 @@ cpu_in_wfi:
 	b	cpu_in_wfi
 endfunc warm_reset_req
 
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 func plat_get_my_entrypoint
 	ldr	x4, =L2_RESET_DONE_REG
 

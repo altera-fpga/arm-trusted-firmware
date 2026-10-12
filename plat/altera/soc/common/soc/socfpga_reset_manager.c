@@ -78,7 +78,7 @@ void deassert_peripheral_reset(void)
 
 #if (PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX) || \
 	(PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3) || \
-	(PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72)
+	(PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27)
 	mmio_clrbits_32(SOCFPGA_RSTMGR(BRGMODRST),
 			RSTMGR_FIELD(BRG, MPFE));
 #endif
@@ -113,7 +113,7 @@ static int poll_idle_status(uint32_t addr, uint32_t mask, uint32_t match, uint32
 	return -ETIMEDOUT;
 }
 
-#if PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX3 && PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX3 && PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX27
 static int poll_idle_status_by_clkcycles(uint32_t addr, uint32_t mask,
 					 uint32_t match, uint32_t delay_clk_cycles)
 {
@@ -196,7 +196,7 @@ static void socfpga_f2s_bridge_mask(uint32_t mask,
 		*f2s_respempty |= FLAGINSTATUS_F2SDRAM2_RESPEMPTY;
 		*f2s_cmdidle |= FLAGINSTATUS_F2SDRAM2_CMDIDLE;
 	}
-#elif PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#elif PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	if (mask & FPGA2SOC_MASK) {
 		*brg_mask |= RSTMGR_FIELD(BRG, FPGA2SOC);
 		*f2s_idlereq |= FLAGOUTSETCLR_F2SDRAM0_IDLEREQ;
@@ -402,7 +402,7 @@ int socfpga_bridges_enable(uint32_t mask)
 	uint32_t f2s_idleack = 0;
 	uint32_t f2s_respempty = 0;
 	uint32_t f2s_cmdidle = 0;
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	uint32_t brg_lst = 0;
 #endif
 
@@ -410,7 +410,7 @@ int socfpga_bridges_enable(uint32_t mask)
 
 	/* Enable s2f bridge */
 	socfpga_s2f_bridge_mask(mask, &brg_mask, &noc_mask);
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	brg_lst = mmio_read_32(SOCFPGA_RSTMGR(BRGMODRST));
 	if ((brg_mask & RSTMGR_BRGMODRSTMASK_SOC2FPGA)
 		&& ((brg_lst & RSTMGR_BRGMODRSTMASK_SOC2FPGA) != 0)) {
@@ -606,7 +606,7 @@ int socfpga_bridges_enable(uint32_t mask)
 	socfpga_f2s_bridge_mask(mask, &brg_mask, &f2s_idlereq,
 				&f2s_force_drain, &f2s_en,
 				&f2s_idleack, &f2s_respempty, &f2s_cmdidle);
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	/* Enable FPGA2SOC bridge */
 
 	if ((brg_mask & RSTMGR_BRGMODRSTMASK_FPGA2SOC)
@@ -891,7 +891,7 @@ int socfpga_bridges_disable(uint32_t mask)
 
 	/* Disable s2f bridge */
 	socfpga_s2f_bridge_mask(mask, &brg_mask, &noc_mask);
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	/* Disable SOC2FPGA bridge */
 	if (brg_mask & RSTMGR_BRGMODRSTMASK_SOC2FPGA) {
 		/*
@@ -1003,7 +1003,7 @@ int socfpga_bridges_disable(uint32_t mask)
 	socfpga_f2s_bridge_mask(mask, &brg_mask, &f2s_idlereq,
 				&f2s_force_drain, &f2s_en,
 				&f2s_idleack, &f2s_respempty, &f2s_cmdidle);
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	/* Disable FPGA2SOC bridge */
 	if (brg_mask & RSTMGR_BRGMODRSTMASK_FPGA2SOC) {
 		/*

@@ -7,8 +7,8 @@
 
 #include <lib/mmio.h>
 
-#include "agilex72_pinmux.h"
-#include "agilex72_system_manager.h"
+#include "agilex27_pinmux.h"
+#include "agilex27_system_manager.h"
 
 const uint32_t sysmgr_pinmux_array_sel[] = {
 	0x00000000, 0x00000001, /* usb */
@@ -239,7 +239,7 @@ void config_pinmux(handoff *hoff_ptr)
 	/*
 	 * Configure the FPGA use.
 	 * The actual generic handoff contains extra 4 elements, and these 4 elements
-	 * are not applicable to the Agilex72 platform. Writing these extra 4 elements
+	 * are not applicable to the Agilex27 platform. Writing these extra 4 elements
 	 * will cause the system to crash, so let's avoid writing them here.
 	 */
 	for (i = 0; i < (ARRAY_SIZE(hoff_ptr->pinmux_fpga_array) - 4); i += 2) {

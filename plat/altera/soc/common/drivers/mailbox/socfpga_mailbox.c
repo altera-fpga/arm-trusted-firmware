@@ -7,7 +7,7 @@
  * This file is a thin wrapper layer.  Every public mailbox API function
  * dispatches to the active backend selected by mailbox_core_init():
  *
- *   Agilex72  -> MAILBOX_BACKEND_MCSR  (mcsr_backend)
+ *   Agilex27  -> MAILBOX_BACKEND_MCSR  (mcsr_backend)
  *   Agilex3   -> MAILBOX_BACKEND_SCSR  (scsr_backend)
  *
  * No direct hardware (MBOX_OFFSET) accesses are made here.

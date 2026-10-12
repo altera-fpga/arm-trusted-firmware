@@ -7,7 +7,7 @@
  * MCSR (multi-channel/ring based) SDM mailbox backend.
  *
  * This translation unit is only compiled for platforms that select the MCSR
- * backend (e.g. Agilex72).  It owns all descriptor-ring state and exposes the
+ * backend (e.g. Agilex27).  It owns all descriptor-ring state and exposes the
  * mcsr_backend vtable consumed by the common core dispatcher.
  */
 
@@ -63,14 +63,14 @@
 
 /* Shared memory layout - unchanged from original */
 
-//fixme: remove diverging definitions when Agilex72 real hardware is ready
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+//fixme: remove diverging definitions when Agilex27 real hardware is ready
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 
 #define MAILBOX_MAX_QUEUE_SIZE				11
 #define MAILBOX_MSG_MAX_LENGTH				64
 #define MAILBOX_RESP_MAX_LENGTH				64
 /*
- * On Agilex72 Simics the MCSR rings use fixed OCRAM addresses defined in
+ * On Agilex27 Simics the MCSR rings use fixed OCRAM addresses defined in
  * socfpga_plat_def.h.  These must not overlap with the baremetal image
  * (see linker_ocram.ld: DATA_ORIGIN must be >= 0x32000 for OCRAM builds).
  */
@@ -87,7 +87,7 @@ struct mailbox_response {
 /*
  * MCSR SDM mailbox — Simics internal OCRAM buffers
  *
- * On Agilex72 Simics the MCSR hardware rings point to fixed OCRAM addresses.
+ * On Agilex27 Simics the MCSR hardware rings point to fixed OCRAM addresses.
  * message_buffer  : C2S (HPS→SDM) ring, 11 entries × 260 B =  2860 B = 0x20000..0x20B2C
  * response_buffer : S2C (SDM→HPS) ring, 11 entries × 516 B =  5676 B = 0x30000..0x3162C
  *
@@ -95,13 +95,13 @@ struct mailbox_response {
  * Reserve 0x00000000–0x31FFF for ATF+mailbox.  Baremetal OCRAM data
  * must start at 0x32000 or later (see linker_ocram.ld).
  */
-#define AGILEX72_SIMICS_MBOX_MSG_BUF_BASE				(0x00020000)
-#define AGILEX72_SIMICS_MBOX_RSP_BUF_BASE				(0x00030000)
+#define AGILEX27_SIMICS_MBOX_MSG_BUF_BASE				(0x00020000)
+#define AGILEX27_SIMICS_MBOX_RSP_BUF_BASE				(0x00030000)
 
 static struct mailbox_message *message_buffer =
-		(struct mailbox_message *)AGILEX72_SIMICS_MBOX_MSG_BUF_BASE;
+		(struct mailbox_message *)AGILEX27_SIMICS_MBOX_MSG_BUF_BASE;
 static struct mailbox_message *response_buffer =
-		(struct mailbox_message *)AGILEX72_SIMICS_MBOX_RSP_BUF_BASE;
+		(struct mailbox_message *)AGILEX27_SIMICS_MBOX_RSP_BUF_BASE;
 #else
 #define MAILBOX_MAX_QUEUE_SIZE				11
 #define SHARED_MEM_BASE						0x0800F4000L

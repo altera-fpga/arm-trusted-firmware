@@ -12,10 +12,10 @@
 #include <drivers/delay_timer.h>
 #include <lib/mmio.h>
 
-#include "agilex72_clock_manager.h"
+#include "agilex27_clock_manager.h"
 
 /*
- * Agilex72 clock manager ATF BL2 is the FSBL (like Agilex5):
+ * Agilex27 clock manager ATF BL2 is the FSBL (like Agilex5):
  * config_clkmgr_handoff() brings up the SDM-preset GPPLLs and the clock
  * manager. Rates are read back as golden GPPLL C-output Hz / live divider
  * (the VCO config is owned by the SDM, not ATF).
@@ -42,14 +42,14 @@ static uint32_t clkmgr_pow2_div(uint32_t reg_off, uint32_t shift, uint32_t width
 /* comp0 clock (A520 complex 0 / legacy MPU): GPPLL1_C0 / comp0 counter */
 static uint32_t get_mpu_clk(void)
 {
-	return (uint32_t)(AGILEX72_GPPLL1_C0_HZ /
+	return (uint32_t)(AGILEX27_GPPLL1_C0_HZ /
 			  clkmgr_free_ctr_div(CLKMGR_COMP0_CTR));
 }
 
 /* LSP main NoC clock: GPPLL0_C1 / lspnoc counter */
 static uint32_t get_l4_main_clk(void)
 {
-	return (uint32_t)(AGILEX72_GPPLL0_C1_HZ /
+	return (uint32_t)(AGILEX27_GPPLL0_C1_HZ /
 			  clkmgr_free_ctr_div(CLKMGR_LSPNOC_FREE_CTR));
 }
 
@@ -86,7 +86,7 @@ static uint32_t get_uart_clk(void)
 /* EMAC data clock (EMAC-A path): GPPLL0_C0 / emaca counter / otherdiv[EMACA] */
 static uint32_t get_emaca_clk(void)
 {
-	uint32_t emaca_free = (uint32_t)(AGILEX72_GPPLL0_C0_HZ /
+	uint32_t emaca_free = (uint32_t)(AGILEX27_GPPLL0_C0_HZ /
 					 clkmgr_free_ctr_div(CLKMGR_EMACA_CTR));
 
 	return emaca_free /
@@ -98,7 +98,7 @@ static uint32_t get_emaca_clk(void)
 static uint32_t get_sdmmc_clk(void)
 {
 	uint32_t memdevphy_free =
-		(uint32_t)(AGILEX72_GPPLL0_C3_HZ /
+		(uint32_t)(AGILEX27_GPPLL0_C3_HZ /
 			   clkmgr_free_ctr_div(CLKMGR_MEMDEVPHY_FREE_CTR));
 
 	return memdevphy_free /
@@ -118,8 +118,8 @@ static uint32_t get_sdmmc_clk(void)
 /* Unlock clock-manager writes at the secure manager. */
 static void clkmgr_secure_unlock(void)
 {
-	mmio_write_32(AGILEX72_SECMGR_CLKMGR_UNLOCK_ADDR,
-		      AGILEX72_SECMGR_CLKMGR_UNLOCK_VAL);
+	mmio_write_32(AGILEX27_SECMGR_CLKMGR_UNLOCK_ADDR,
+		      AGILEX27_SECMGR_CLKMGR_UNLOCK_VAL);
 }
 
 /*

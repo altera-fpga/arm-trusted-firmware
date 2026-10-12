@@ -20,13 +20,13 @@
 #include <lib/xlat_tables/xlat_tables_v2.h>
 #include <string.h>
 
-#include "agilex72_clock_manager.h"
-#include "agilex72_ddr.h"
-#include "agilex72_memory_controller.h"
-#include "agilex72_mmc.h"
-#include "agilex72_pinmux.h"
-#include "agilex72_power_manager.h"
-#include "agilex72_system_manager.h"
+#include "agilex27_clock_manager.h"
+#include "agilex27_ddr.h"
+#include "agilex27_memory_controller.h"
+#include "agilex27_mmc.h"
+#include "agilex27_pinmux.h"
+#include "agilex27_power_manager.h"
+#include "agilex27_system_manager.h"
 
 #include "ccu/ncore_ccu.h"
 #include "combophy/combophy.h"
@@ -124,7 +124,7 @@ void bl2_early_platform_setup2(u_register_t x0 __unused,
 	/*
 	 * Configure the clock manager. The routine performs the GPPLL/clock-
 	 * manager bring-up itself (see config_clkmgr_handoff() in
-	 * agilex72_clock_manager.c) and does not consume handoff data, so NULL
+	 * agilex27_clock_manager.c) and does not consume handoff data, so NULL
 	 * is passed.
 	 */
 	if ((config_clkmgr_handoff(NULL)) != 0) {
@@ -194,7 +194,7 @@ void bl2_plat_arch_setup(void)
 							   SDEMMC_SDCLK);
 
 	params.sdmclk = clkmgr_get_rate(CLKMGR_SDMMC_CLK_ID);
-#if defined(AGILEX72_SIMICS_BYPASS) && (AGILEX72_SIMICS_BYPASS == 1)
+#if defined(AGILEX27_SIMICS_BYPASS) && (AGILEX27_SIMICS_BYPASS == 1)
 	/*
 	 * Simics km-hps-sdmmc does not model combo-PHY HRS04/HRS05 readback or
 	 * the SRS09 card-detect line. Advertise runtime quirks so the shared
@@ -226,7 +226,7 @@ void bl2_plat_arch_setup(void)
 		// socfpga_io_setup(boot_source, PLAT_NAND_DATA_BASE);
 		// break;
 	/*
-	 * In Agilex72, both QSPI (x4) and OSPI (x8) flash are accessed through the
+	 * In Agilex27, both QSPI (x4) and OSPI (x8) flash are accessed through the
 	 * same Cadence xSPI hardware controller
 	 */
 	case BOOT_SOURCE_QSPI:

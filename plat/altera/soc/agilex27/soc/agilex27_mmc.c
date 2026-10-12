@@ -5,8 +5,8 @@
  */
 #include <lib/mmio.h>
 
-#include "agilex72_clock_manager.h"
-#include "agilex72_system_manager.h"
+#include "agilex27_clock_manager.h"
+#include "agilex27_system_manager.h"
 
 void agx5_mmc_init(void)
 {

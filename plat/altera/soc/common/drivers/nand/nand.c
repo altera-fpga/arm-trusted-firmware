@@ -20,8 +20,8 @@
 
 #if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
 #include "agilex3_pinmux.h"
-#elif PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
-#include "agilex72_pinmux.h"
+#elif PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
+#include "agilex27_pinmux.h"
 #endif
 #include "combophy/combophy.h"
 

@@ -11,7 +11,7 @@
 #include "socfpga_handoff.h"
 
 /*
- * Agilex72 Clock Manager replaces the legacy Main/Peripheral
+ * Agilex27 Clock Manager replaces the legacy Main/Peripheral
  * membus PLLs with three fractional-synthesis GPPLLs (GPPLL0/1/2). ATF BL2 is
  * the FSBL and owns bring-up (see config_clkmgr_handoff()). Rate model:
  * consumer_hz = golden gppll_c_output_hz / live clock-manager divider
@@ -43,28 +43,28 @@
  * (2500 MHz). ATF uses these as the C-output parents; the SDM owns the VCO
  * config.
  */
-#define AGILEX72_GPPLL0_C0_HZ			1000000000U	/* 1000 MHz */
-#define AGILEX72_GPPLL0_C1_HZ			500000000U	/*  500 MHz */
-#define AGILEX72_GPPLL0_C2_HZ			400000000U	/*  400 MHz */
-#define AGILEX72_GPPLL0_C3_HZ			2000000000U	/* 2000 MHz */
-#define AGILEX72_GPPLL1_C0_HZ			1850000000U	/* comp0/MPU */
-#define AGILEX72_GPPLL1_C1_HZ			1850000000U	/* dsu       */
-#define AGILEX72_GPPLL2_C0_HZ			2500000000U	/* core2     */
-#define AGILEX72_GPPLL2_C1_HZ			2500000000U	/* core3     */
+#define AGILEX27_GPPLL0_C0_HZ			1000000000U	/* 1000 MHz */
+#define AGILEX27_GPPLL0_C1_HZ			500000000U	/*  500 MHz */
+#define AGILEX27_GPPLL0_C2_HZ			400000000U	/*  400 MHz */
+#define AGILEX27_GPPLL0_C3_HZ			2000000000U	/* 2000 MHz */
+#define AGILEX27_GPPLL1_C0_HZ			1850000000U	/* comp0/MPU */
+#define AGILEX27_GPPLL1_C1_HZ			1850000000U	/* dsu       */
+#define AGILEX27_GPPLL2_C0_HZ			2500000000U	/* core2     */
+#define AGILEX27_GPPLL2_C1_HZ			2500000000U	/* core3     */
 
-#define AGILEX72_OSC1_HZ			200000000U
-#define AGILEX72_INTOSC_DIV2_HZ			500000000U
-#define AGILEX72_F2S_FREE_HZ			100000000U
+#define AGILEX27_OSC1_HZ			200000000U
+#define AGILEX27_INTOSC_DIV2_HZ			500000000U
+#define AGILEX27_F2S_FREE_HZ			100000000U
 
 /* Derived golden consumer frequencies (Hz); reference values for validation. */
-#define AGILEX72_MPU_HZ				AGILEX72_GPPLL1_C0_HZ	/* 1850 MHz */
-#define AGILEX72_L4_MAIN_HZ			AGILEX72_GPPLL0_C1_HZ	/*  500 MHz */
-#define AGILEX72_L4_MP_HZ			250000000U		/*  250 MHz */
-#define AGILEX72_L4_SP_HZ			125000000U		/*  125 MHz */
-#define AGILEX72_WDT_HZ				125000000U		/*  125 MHz */
-#define AGILEX72_UART_HZ			125000000U		/*  125 MHz */
-#define AGILEX72_EMAC_HZ			250000000U		/*  250 MHz */
-#define AGILEX72_SDMMC_HZ			200000000U		/*  200 MHz */
+#define AGILEX27_MPU_HZ				AGILEX27_GPPLL1_C0_HZ	/* 1850 MHz */
+#define AGILEX27_L4_MAIN_HZ			AGILEX27_GPPLL0_C1_HZ	/*  500 MHz */
+#define AGILEX27_L4_MP_HZ			250000000U		/*  250 MHz */
+#define AGILEX27_L4_SP_HZ			125000000U		/*  125 MHz */
+#define AGILEX27_WDT_HZ				125000000U		/*  125 MHz */
+#define AGILEX27_UART_HZ			125000000U		/*  125 MHz */
+#define AGILEX27_EMAC_HZ			250000000U		/*  250 MHz */
+#define AGILEX27_SDMMC_HZ			200000000U		/*  200 MHz */
 
 /*
  * consumer register offsets (from CLKMGR_BASE). *_CTR: count divider in
@@ -169,8 +169,8 @@
 #define CLKMGR_PLLGLOB_S5_FBLVDS_ON		0x000080DE
 
 /* Secure-manager register that unlocks clock-manager writes */
-#define AGILEX72_SECMGR_CLKMGR_UNLOCK_ADDR	0x09152068
-#define AGILEX72_SECMGR_CLKMGR_UNLOCK_VAL	0x00000001
+#define AGILEX27_SECMGR_CLKMGR_UNLOCK_ADDR	0x09152068
+#define AGILEX27_SECMGR_CLKMGR_UNLOCK_VAL	0x00000001
 
 /* Peripheral externally-timed counter reset (release on boot-bypass exit) */
 #define CLKMGR_PERICTL_EXTCNTRST		0x124

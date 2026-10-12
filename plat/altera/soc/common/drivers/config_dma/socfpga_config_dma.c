@@ -341,11 +341,11 @@ int dw_dma_prep_h2d_multiblock(int ch, uintptr_t src_addr,
 
 /*
  * Single-block Preparation
- * - Target HW: Synopsys DW AXI DMAC, Agilex72 platform
+ * - Target HW: Synopsys DW AXI DMAC, Agilex27 platform
  * - Use case: Simple Host-to-Device transfers
  * - Single-block (non-LLI) mode only
  * - DMA controller is the flow controller (TT_FC = MEM_TO_PER_DMAC)
- * - Transfer width and burst settings are aligned to Agilex72 bus capability
+ * - Transfer width and burst settings are aligned to Agilex27 bus capability
  *   and validated in Simics.
  *
  * NOTE: MSIZE, outstanding requests limits, and priority are currently

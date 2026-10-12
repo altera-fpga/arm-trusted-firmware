@@ -628,7 +628,7 @@ int intel_fcs_encryption_ext(uint32_t smc_fid, uint32_t trans_id,
 	}
 
 	/* On the Agilex5 platform, we will use the SMMU payload address */
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	src_addr_sdm = smmu_src_addr;
 	dst_addr_sdm = smmu_dst_addr;
 #endif
@@ -704,7 +704,7 @@ int intel_fcs_decryption_ext(uint32_t smc_fid, uint32_t trans_id,
 	}
 
 	/* On the Agilex5 platform, we will use the SMMU payload address */
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	src_addr_sdm = smmu_src_addr;
 	dst_addr_sdm = smmu_dst_addr;
 #endif
@@ -1279,7 +1279,7 @@ int intel_fcs_get_digest_update_finalize(uint32_t smc_fid, uint32_t trans_id,
 	/* Data source address and size */
 
 	/* On the Agilex5 platform, we will use the SMMU payload address */
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	payload[i] = smmu_src_addr;
 #else
 	payload[i] = src_addr;
@@ -1518,7 +1518,7 @@ int intel_fcs_mac_verify_update_finalize(uint32_t smc_fid, uint32_t trans_id,
 	}
 
 	/* Data source address and size */
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	payload[i] = (uint32_t)smmu_src_addr;
 #else
 	payload[i] = src_addr;
@@ -2015,7 +2015,7 @@ int intel_fcs_ecdsa_sha2_data_sign_update_finalize(uint32_t smc_fid, uint32_t tr
 	}
 
 	/* Data source address and size */
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	payload[i] = (uint32_t)smmu_src_addr;
 #else
 	payload[i] = src_addr;
@@ -2250,7 +2250,7 @@ int intel_fcs_ecdsa_sha2_data_sig_verify_update_finalize(uint32_t smc_fid, uint3
 
 	/* Data source address and size */
 	/* On the Agilex5 platform, the SMMU remapped address is used */
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	payload[i] = smmu_src_addr;
 #else
 	payload[i] = src_addr;
@@ -2657,7 +2657,7 @@ int intel_fcs_aes_crypt_init(uint32_t session_id, uint32_t context_id,
 	    (((*param_addr_ptr & FCS_CRYPTO_BLOCK_MODE_MASK) != FCS_CRYPTO_ECB_MODE) &&
 	    ((*param_addr_ptr & FCS_CRYPTO_BLOCK_MODE_MASK) != FCS_CRYPTO_CBC_MODE) &&
 	    ((*param_addr_ptr & FCS_CRYPTO_BLOCK_MODE_MASK) != FCS_CRYPTO_CTR_MODE)
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	    &&
 	    ((*param_addr_ptr & FCS_CRYPTO_BLOCK_MODE_MASK) != FCS_CRYPTO_GCM_MODE) &&
 	    ((*param_addr_ptr & FCS_CRYPTO_BLOCK_MODE_MASK) != FCS_CRYPTO_GCM_GHASH_MODE)
@@ -2741,7 +2741,7 @@ int intel_fcs_aes_crypt_update_finalize(uint32_t smc_fid, uint32_t trans_id,
 	 * should be in multiples of 16 bytes. For other platforms and other modes, it should be
 	 * in multiples of 32 bytes.
 	 */
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	uint32_t block_mode = fcs_aes_init_payload.crypto_param[0] & FCS_CRYPTO_BLOCK_MODE_MASK;
 
 	if ((block_mode == FCS_CRYPTO_GCM_MODE) ||
@@ -2813,7 +2813,7 @@ int intel_fcs_aes_crypt_update_finalize(uint32_t smc_fid, uint32_t trans_id,
 	}
 
 	/* On the Agilex5 platform, we will use the SMMU payload address */
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	src_addr_sdm = (uint32_t)smmu_src_addr;
 	dst_addr_sdm = (uint32_t)smmu_dst_addr;
 #endif

@@ -12,7 +12,7 @@
 #include <lib/utils.h>
 #include <platform_def.h>
 
-#include "agilex72_memory_controller.h"
+#include "agilex27_memory_controller.h"
 
 #define ALT_CCU_NOC_DI_SET_MSK		0x10
 

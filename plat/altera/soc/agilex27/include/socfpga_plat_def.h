@@ -9,10 +9,10 @@
 #ifndef PLAT_SOCFPGA_DEF_H
 #define PLAT_SOCFPGA_DEF_H
 
-#include "agilex72_cache.h"
-#include "agilex72_memory_controller.h"
-#include "agilex72_power_manager.h"
-#include "agilex72_system_manager.h"
+#include "agilex27_cache.h"
+#include "agilex27_memory_controller.h"
+#include "agilex27_power_manager.h"
+#include "agilex27_system_manager.h"
 
 /* MCSR mailbox backend (pulls in C2S/S2C ring helpers + backend vtable). */
 #include "mcsr/socfpga_mcsr_mailbox.h"
@@ -20,9 +20,9 @@
 #include <platform_def.h>
 
 /* Platform Setting */
-#define PLATFORM_MODEL						PLAT_SOCFPGA_AGILEX72
+#define PLATFORM_MODEL						PLAT_SOCFPGA_AGILEX27
 /* 1 = Flush cache, 0 = No cache flush.
- * Default for Agilex72 is Cache flush.
+ * Default for Agilex27 is Cache flush.
  */
 #define CACHE_FLUSH							1
 #define MMC_DEVICE_TYPE						1  /* MMC = 0, SD = 1 */

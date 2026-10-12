@@ -186,7 +186,7 @@ void socfpga_io_setup(int boot_source, unsigned long offset)
 		break;
 
 //TODO: revisit in future to remove #if PLATFORM_MODEL
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	case BOOT_SOURCE_OSPI:
 		register_io_dev = &register_io_dev_memmap;
 		boot_dev_spec.buffer.offset = PLAT_XSPI_DATA_BASE;
@@ -195,7 +195,7 @@ void socfpga_io_setup(int boot_source, unsigned long offset)
 		break;
 #endif
 
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	case BOOT_SOURCE_NAND:
 		register_io_dev = &register_io_dev_mtd;
 		nand_dev_spec.ops.init = cdns_nand_init_mtd;
@@ -219,7 +219,7 @@ void socfpga_io_setup(int boot_source, unsigned long offset)
 	if (boot_source == BOOT_SOURCE_NAND) {
 		result = io_dev_open(boot_dev_con, (uintptr_t)&nand_dev_spec,
 								&boot_dev_handle);
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	} else if ((boot_source == BOOT_SOURCE_QSPI) || (boot_source == BOOT_SOURCE_OSPI)) {
 		result = io_dev_open(boot_dev_con, 0, &boot_dev_handle);
 #endif

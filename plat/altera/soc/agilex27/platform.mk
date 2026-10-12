@@ -14,7 +14,7 @@ $(eval $(call add_define,SOCFPGA_SIP_SVC_V3))
 include lib/xlat_tables_v2/xlat_tables.mk
 include lib/libfdt/libfdt.mk
 PLAT_INCLUDES		:=	\
-			-Iplat/altera/soc/agilex72/include/		\
+			-Iplat/altera/soc/agilex27/include/		\
 			-Iplat/altera/soc/common/drivers/		\
 			-Iplat/altera/soc/common/lib/sha/		\
 			-Iplat/altera/soc/common/lib/utils/		\
@@ -23,7 +23,7 @@ PLAT_INCLUDES		:=	\
 
 # GIC-600 configuration
 GICV3_SUPPORT_GIC600	:=	1
-# Newer Simics Agilex72 models report GICD_PIDR2.ArchRev = 4 (GICv4), and
+# Newer Simics Agilex27 models report GICD_PIDR2.ArchRev = 4 (GICv4), and
 # gicv3_main.c only accepts that when GIC_ENABLE_V4_EXTN is enabled.
 GIC_ENABLE_V4_EXTN	:=	1
 
@@ -79,13 +79,13 @@ BL2_SOURCES		+=	\
 		drivers/synopsys/emmc/dw_mmc.c				\
 		lib/cpus/aarch64/cortex_a520.S				\
 		lib/cpus/aarch64/cortex_a720.S				\
-		plat/altera/soc/agilex72/soc/agilex72_clock_manager.c	\
-		plat/altera/soc/agilex72/soc/agilex72_memory_controller.c	\
-		plat/altera/soc/agilex72/soc/agilex72_mmc.c		\
-		plat/altera/soc/agilex72/soc/agilex72_pinmux.c		\
-		plat/altera/soc/agilex72/soc/agilex72_power_manager.c	\
-		plat/altera/soc/agilex72/soc/agilex72_ddr.c		\
-		plat/altera/soc/agilex72/soc/agilex72_iossm_mailbox.c	\
+		plat/altera/soc/agilex27/soc/agilex27_clock_manager.c	\
+		plat/altera/soc/agilex27/soc/agilex27_memory_controller.c	\
+		plat/altera/soc/agilex27/soc/agilex27_mmc.c		\
+		plat/altera/soc/agilex27/soc/agilex27_pinmux.c		\
+		plat/altera/soc/agilex27/soc/agilex27_power_manager.c	\
+		plat/altera/soc/agilex27/soc/agilex27_ddr.c		\
+		plat/altera/soc/agilex27/soc/agilex27_iossm_mailbox.c	\
 		plat/altera/soc/common/bl2_plat_mem_params_desc.c	\
 		plat/altera/soc/common/socfpga_image_load.c		\
 		plat/altera/soc/common/socfpga_ros.c			\
@@ -96,7 +96,7 @@ BL2_SOURCES		+=	\
 		plat/altera/soc/common/soc/socfpga_handoff.c		\
 		plat/altera/soc/common/soc/socfpga_reset_manager.c	\
 		plat/altera/soc/common/drivers/qspi/cadence_qspi.c	\
-		plat/altera/soc/agilex72/bl2_plat_setup.c			\
+		plat/altera/soc/agilex27/bl2_plat_setup.c			\
 		plat/altera/soc/common/drivers/wdt/watchdog.c
 
 include lib/zlib/zlib.mk
@@ -110,10 +110,10 @@ BL31_SOURCES	+=	\
 		lib/cpus/aarch64/cortex_a520.S				\
 		lib/cpus/aarch64/cortex_a720.S				\
 		plat/common/plat_psci_common.c				\
-		plat/altera/soc/agilex72/bl31_plat_setup.c		\
-		plat/altera/soc/agilex72/soc/agilex72_cache.S		\
-		plat/altera/soc/agilex72/soc/agilex72_clock_manager.c	\
-		plat/altera/soc/agilex72/soc/agilex72_power_manager.c	\
+		plat/altera/soc/agilex27/bl31_plat_setup.c		\
+		plat/altera/soc/agilex27/soc/agilex27_cache.S		\
+		plat/altera/soc/agilex27/soc/agilex27_clock_manager.c	\
+		plat/altera/soc/agilex27/soc/agilex27_power_manager.c	\
 		plat/altera/soc/common/socfpga_psci.c			\
 		plat/altera/soc/common/socfpga_sip_svc.c			\
 		plat/altera/soc/common/socfpga_topology.c		\
@@ -172,9 +172,9 @@ $(eval $(call add_define,SOCFPGA_SECURE_VAB_AUTH))
 # Simics model bypass: skip incomplete km-hps-sdmmc combo-PHY / card-detect.
 # Default 0 keeps full silicon behaviour for production. Set to 1 for Simics.
 # Does NOT skip FIP load — front-door SD boot still calls load_auth_image().
-AGILEX72_SIMICS_BYPASS		?=	0
-$(eval $(call assert_boolean,AGILEX72_SIMICS_BYPASS))
-$(eval $(call add_define,AGILEX72_SIMICS_BYPASS))
+AGILEX27_SIMICS_BYPASS		?=	0
+$(eval $(call assert_boolean,AGILEX27_SIMICS_BYPASS))
+$(eval $(call add_define,AGILEX27_SIMICS_BYPASS))
 
 PROGRAMMABLE_RESET_ADDRESS	:= 0
 RESET_TO_BL2			:= 1

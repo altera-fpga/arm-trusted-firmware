@@ -12,7 +12,7 @@
 
 #if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
 #define MBOX_OFFSET					0x10a30000
-#elif PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#elif PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 #define MBOX_OFFSET					0xf0000 //fixme
 #else
 #define MBOX_OFFSET					0xffa30000
@@ -281,7 +281,7 @@ int intel_mailbox_get_config_status(uint32_t cmd, bool init_done,
 				    uint32_t *err_states);
 int intel_mailbox_is_fpga_not_ready(void);
 
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 void intel_smmu_hps_remapper_init(uint64_t *mem);
 int intel_smmu_hps_remapper_config(uint32_t remapper_bypass);
 #endif

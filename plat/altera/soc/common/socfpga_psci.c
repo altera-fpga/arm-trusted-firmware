@@ -20,9 +20,9 @@
 #if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3
 #include "agilex3_cache.h"
 #include "agilex3_power_manager.h"
-#elif PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
-#include "agilex72_cache.h"
-#include "agilex72_power_manager.h"
+#elif PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
+#include "agilex27_cache.h"
+#include "agilex27_power_manager.h"
 #endif
 #include "ccu/ncore_ccu.h"
 #include "mailbox/socfpga_mailbox.h"
@@ -32,12 +32,12 @@
 #include "socfpga_sip_svc.h"
 #include "socfpga_system_manager.h"
 
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 void socfpga_wakeup_secondary_cpu(unsigned int cpu_id);
 extern void plat_secondary_cold_boot_setup(void);
 #endif
 
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 static uintptr_t socfpga_psci_warm_entry;
 
 static void __dead2 socfpga_pwr_domain_pwr_down(const psci_power_state_t *target_state)
@@ -79,7 +79,7 @@ void socfpga_cpu_standby(plat_local_state_t cpu_state)
  ******************************************************************************/
 static void socfpga_pwr_pre_on(unsigned int cpu_id)
 {
-#if (PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX3) && (PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX72)
+#if (PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX3) && (PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX27)
 	uint32_t psci_boot = 0x00;
 
 	if (cpu_id == 0x00) {
@@ -94,7 +94,7 @@ static void socfpga_pwr_pre_on(unsigned int cpu_id)
 
 static void socfpga_pwr_release_core(unsigned int cpu_id)
 {
-#if (PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3) || (PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72)
+#if (PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3) || (PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27)
 	unsigned int pch_cpu = mmio_read_32(PWRMGR_MPU_PCHCTLR) &
 			       PWRMGR_CPU_POWER_STATE_MASK;
 
@@ -102,7 +102,7 @@ static void socfpga_pwr_release_core(unsigned int cpu_id)
 		bl31_plat_reset_secondary_cpu(cpu_id);
 	}
 
-#if (PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72)
+#if (PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27)
 	if (cpu_id >= 2U) {
 		bl31_enable_a720_cluster_clocks();
 	}
@@ -126,7 +126,7 @@ int socfpga_pwr_domain_on(u_register_t mpidr)
 		return PSCI_E_INTERN_FAIL;
 	}
 
-#if (PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX3) && (PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX72)
+#if (PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX3) && (PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX27)
 	VERBOSE("%s: mpidr: 0x%lx\n", __func__, mpidr);
 #endif
 
@@ -179,7 +179,7 @@ void socfpga_pwr_domain_off(const psci_power_state_t *target_state)
  ******************************************************************************/
 void socfpga_pwr_domain_suspend(const psci_power_state_t *target_state)
 {
-#if PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX3 && PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX3 && PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX27
 	unsigned int cpu_id = plat_my_core_pos();
 #endif
 
@@ -187,7 +187,7 @@ void socfpga_pwr_domain_suspend(const psci_power_state_t *target_state)
 		VERBOSE("%s: target_state->pwr_domain_state[%lu]=%x\n",
 			__func__, i, target_state->pwr_domain_state[i]);
 
-#if PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX3 && PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX3 && PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX27
 	/* assert core reset */
 	mmio_setbits_32(SOCFPGA_RSTMGR(MPUMODRST), 1 << cpu_id);
 #endif
@@ -227,7 +227,7 @@ void socfpga_pwr_domain_on_finish(const psci_power_state_t *target_state)
  ******************************************************************************/
 void socfpga_pwr_domain_suspend_finish(const psci_power_state_t *target_state)
 {
-#if PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX3 && PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX3 && PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX27
 	unsigned int cpu_id = plat_my_core_pos();
 #endif
 
@@ -235,7 +235,7 @@ void socfpga_pwr_domain_suspend_finish(const psci_power_state_t *target_state)
 		VERBOSE("%s: target_state->pwr_domain_state[%lu]=%x\n",
 			__func__, i, target_state->pwr_domain_state[i]);
 
-#if PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX3 && PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX3 && PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX27
 	/* release core reset */
 	mmio_clrbits_32(SOCFPGA_RSTMGR(MPUMODRST), 1 << cpu_id);
 #endif
@@ -304,7 +304,7 @@ static int socfpga_system_reset2(int is_vendor, int reset_type,
 	mmio_clrsetbits_32(L2_RESET_DONE_REG, BS_REG_MAGIC_KEYS_MASK,
 			   L2_RESET_DONE_STATUS);
 
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	mailbox_reset_warm(reset_type);
 #else
 	if (cold_reset_for_ecc_dbe()) {
@@ -322,7 +322,7 @@ static int socfpga_system_reset2(int is_vendor, int reset_type,
 	gicv2_cpuif_disable();
 #endif
 
-#if PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX27
 	/* Increase timeout */
 	mmio_write_32(SOCFPGA_RSTMGR(HDSKTIMEOUT), 0xffffff);
 
@@ -330,7 +330,7 @@ static int socfpga_system_reset2(int is_vendor, int reset_type,
 	mmio_setbits_32(SOCFPGA_RSTMGR(HDSKEN), RSTMGR_HDSKEN_SET);
 #endif
 
-#if PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX3 && PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX3 && PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX27
 	/* Reset L2 module */
 	mmio_setbits_32(SOCFPGA_RSTMGR(COLDMODRST), 0x100);
 #endif
@@ -379,7 +379,7 @@ const plat_psci_ops_t socfpga_psci_pm_ops = {
 	.validate_power_state = socfpga_validate_power_state,
 	.validate_ns_entrypoint = socfpga_validate_ns_entrypoint,
 	.get_sys_suspend_power_state = socfpga_get_sys_suspend_power_state,
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	.pwr_domain_pwr_down = socfpga_pwr_domain_pwr_down,
 #endif
 };
@@ -390,7 +390,7 @@ const plat_psci_ops_t socfpga_psci_pm_ops = {
 int plat_setup_psci_ops(uintptr_t sec_entrypoint,
 			const struct plat_psci_ops **psci_ops)
 {
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	socfpga_psci_warm_entry = sec_entrypoint;
 #endif
 	/* Save warm boot entrypoint.*/

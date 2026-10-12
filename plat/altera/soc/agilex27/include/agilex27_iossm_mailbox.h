@@ -12,7 +12,7 @@
 #include <stdlib.h>
 
 #include "lib/mmio.h"
-#include "agilex72_ddr.h"
+#include "agilex27_ddr.h"
 
 #define __bf_shf(x)					(__builtin_ffsll(x) - 1U)
 #define FIELD_GET(_mask, _reg)						\

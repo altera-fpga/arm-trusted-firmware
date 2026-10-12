@@ -11,7 +11,7 @@
 #include <drivers/delay_timer.h>
 #include <lib/mmio.h>
 
-#include "agilex72_power_manager.h"
+#include "agilex27_power_manager.h"
 #include "socfpga_handoff.h"
 #include "socfpga_reset_manager.h"
 

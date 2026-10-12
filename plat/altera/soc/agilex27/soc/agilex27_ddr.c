@@ -10,13 +10,13 @@
 #include <drivers/delay_timer.h>
 #include "lib/mmio.h"
 
-#include "agilex72_ddr.h"
-#include "agilex72_iossm_mailbox.h"
+#include "agilex27_ddr.h"
+#include "agilex27_iossm_mailbox.h"
 #include "mailbox/socfpga_mailbox.h"
 
 /*
  * TODO: We need to leverage the legacy products DDR drivers and consider
- * the upcoming products like Agilex72 and then come up with common source code/driver
+ * the upcoming products like Agilex27 and then come up with common source code/driver
  * architecture to address all the products in one view.
  */
 
@@ -309,7 +309,7 @@ static void sdram_set_firewall(void)
 }
 
 /*
- * Agilex72 DDR/IOSSM controller initialization routine
+ * Agilex27 DDR/IOSSM controller initialization routine
  */
 int km_ddr_init(handoff *hoff_ptr)
 {

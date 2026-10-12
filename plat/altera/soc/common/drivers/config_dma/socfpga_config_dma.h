@@ -15,7 +15,7 @@
 
 /* Platform-specific settings */
 #ifndef DMAC_BASE
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 #define DMAC_BASE					0x90B2000U
 #else
 #define DMAC_BASE					0x18200000U

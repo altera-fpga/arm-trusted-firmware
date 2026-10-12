@@ -11,7 +11,7 @@
 #include <common/debug.h>
 #include <drivers/delay_timer.h>
 
-#include "agilex72_iossm_mailbox.h"
+#include "agilex27_iossm_mailbox.h"
 
 /* supported DDR type list */
 static const char *ddr_type_list[7] = {

@@ -31,7 +31,7 @@ static int read_block, max_blocks;
 static uint32_t send_id, rcv_id;
 static uint32_t bytes_per_block, blocks_submitted;
 static bool bridge_disable;
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 static uint32_t g_remapper_bypass;
 #endif
 
@@ -228,7 +228,7 @@ static int intel_fpga_config_start(uint32_t flag)
 	unsigned int size = 0;
 	unsigned int resp_len = ARRAY_SIZE(response);
 
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	/*
 	 * To trigger isolation
 	 * FPGA configuration complete signal should be de-asserted
@@ -253,7 +253,7 @@ static int intel_fpga_config_start(uint32_t flag)
 		request_type = BITSTREAM_AUTH;
 	}
 
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	intel_smmu_hps_remapper_init(0U);
 #endif
 
@@ -355,7 +355,7 @@ static uint32_t intel_fpga_config_write(uint64_t mem, uint64_t size)
 		return INTEL_SIP_SMC_STATUS_REJECTED;
 	}
 
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	intel_smmu_hps_remapper_init(&mem);
 #endif
 
@@ -402,7 +402,7 @@ static int is_out_of_sec_range(uint64_t reg_addr)
 	}
 #endif
 
-#if PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX3 && PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX3 && PLATFORM_MODEL != PLAT_SOCFPGA_AGILEX27
 	switch (reg_addr) {
 	case(0xF8011100):	/* ECCCTRL1 */
 	case(0xF8011104):	/* ECCCTRL2 */
@@ -488,7 +488,7 @@ static int is_out_of_sec_range(uint64_t reg_addr)
 	case(SOCFPGA_SYSMGR(BOOT_SCRATCH_COLD_1)):	/* BOOT_SCRATCH_COLD1 */
 	case(SOCFPGA_SYSMGR(BOOT_SCRATCH_COLD_8)):	/* BOOT_SCRATCH_COLD8 */
 	case(SOCFPGA_SYSMGR(BOOT_SCRATCH_COLD_9)):	/* BOOT_SCRATCH_COLD9 */
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	/* HS sysmgr BOOT_SCRATCH_COLD (SOC64-compatible layout used by U-Boot) */
 	case(SOCFPGA_HS_SYSMGR(BOOT_SCRATCH_COLD_0)):	/* HS BOOT_SCRATCH_COLD0 */
 	case(SOCFPGA_HS_SYSMGR(BOOT_SCRATCH_COLD_1)):	/* HS BOOT_SCRATCH_COLD1 */
@@ -818,7 +818,7 @@ static uint32_t intel_sdm_safe_inject_seu_err(uint32_t *command, uint32_t len)
 	return INTEL_SIP_SMC_STATUS_OK;
 }
 
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 /* SMMU HPS Remapper */
 void intel_smmu_hps_remapper_init(uint64_t *mem)
 {
@@ -838,7 +838,7 @@ void intel_smmu_hps_remapper_init(uint64_t *mem)
 int intel_smmu_hps_remapper_config(uint32_t remapper_bypass)
 {
 	/* Read out the JTAG-ID from boot scratch register */
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	if (is_agilex5_A5C0() || is_agilex5_A5C4()) {
 #else
 	if (!is_agilex5_A36F0()) {
@@ -2717,7 +2717,7 @@ uintptr_t sip_smc_handler_v1(uint32_t smc_fid,
 					x3, x4, x5, x6, 0, true, &send_id, 0, 0);
 		SMC_RET1(handle, status);
 
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	case INTEL_SIP_SMC_FCS_SDM_REMAPPER_CONFIG:
 		status = intel_smmu_hps_remapper_config(x1);
 		SMC_RET1(handle, status);
@@ -2750,7 +2750,7 @@ uintptr_t sip_smc_handler_v1(uint32_t smc_fid,
 		SMC_RET4(handle, INTEL_SIP_SMC_STATUS_OK, VERSION_MAJOR,
 			 VERSION_MINOR, VERSION_PATCH);
 
-#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX72
+#if PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX3 || PLATFORM_MODEL == PLAT_SOCFPGA_AGILEX27
 	case INTEL_SIP_SMC_INJECT_IO96B_ECC_ERR:
 		intel_inject_io96b_ecc_err((uint32_t *)&x1, (uint32_t)x2);
 		SMC_RET1(handle, INTEL_SIP_SMC_STATUS_OK);
